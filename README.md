@@ -2,6 +2,9 @@
 
 文径是一套本地优先的文献整理工作台，将紧急文献任务拆成五个连续环节：
 
+- 在线体验：https://literature-workbench.vercel.app/
+- 生产部署：Vercel（桌面端、移动端与离线模式已验收）
+
 1. 明确研究边界；
 2. 生成并记录中英文检索式；
 3. 录入和维护文献题录；
@@ -36,3 +39,11 @@ python3 -m http.server 4173
 ## 技术栈
 
 无框架 HTML / CSS / JavaScript，无后端依赖。所有数据在浏览器本地处理和保存。
+
+## 已验证场景
+
+- 320、390、768、1024、1440 像素视口无横向溢出；
+- DOI 自动补全，CSV / JSON / BibTeX / RIS 导入；
+- 重复项、缺失字段与来源待核检查；
+- CSV、JSON、BibTeX 与质量报告导出；
+- Service Worker 缓存与离线重载。
