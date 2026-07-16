@@ -1,0 +1,12 @@
+{
+  "name": "文径｜文献研究工作台",
+  "short_name": "文径",
+  "description": "从研究边界、检索式、文献目录到质量检查与交付导出的本地优先文献工作台。",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f5ef",
+  "theme_color": "#12372f",
+  "icons": [
+    { "src": "assets/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

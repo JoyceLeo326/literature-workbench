@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12372f">
+  <meta name="description" content="文径是一套从研究边界、检索式、文献目录到质量检查与交付导出的本地优先文献工作台。">
+  <title>文径｜文献研究工作台</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <svg class="svg-sprite" aria-hidden="true">
+    <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></symbol>
+    <symbol id="i-scope" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></symbol>
+    <symbol id="i-library" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8M8 11h6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12.5 9 17l11-11"/></symbol>
+    <symbol id="i-package" viewBox="0 0 24 24"><path d="m4 8 8-4 8 4-8 4zM4 8v9l8 4 8-4V8M12 12v9"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5h16M7 12h10M10 19h4"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m4 20 4.5-1 10-10a2 2 0 0 0-3-3l-10 10zM14 7l3 3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 3h6l1 4H8zM7 7l1 14h8l1-14M10 11v6M14 11v6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 3 20h18zM12 9v5M12 17.5v.5"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a4 4 0 0 0 6 .5l3-3a4 4 0 0 0-6-6l-2 2M14 11a4 4 0 0 0-6-.5l-3 3a4 4 0 0 0 6 6l2-2"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M18.5 9A7 7 0 0 0 6 7M5.5 15A7 7 0 0 0 18 17"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#overview" data-nav="overview" aria-label="文径工作台首页">
+        <span class="brand-mark"><i></i><i></i><i></i></span>
+        <span><strong>文径</strong><small>LITPATH</small></span>
+      </a>
+
+      <nav class="side-nav" aria-label="工作台导航">
+        <button class="nav-item is-active" type="button" data-nav="overview"><svg><use href="#i-grid"/></svg><span>任务总览</span></button>
+        <button class="nav-item" type="button" data-nav="scope"><svg><use href="#i-scope"/></svg><span>研究边界</span></button>
+        <button class="nav-item" type="button" data-nav="queries"><svg><use href="#i-search"/></svg><span>检索式</span></button>
+        <button class="nav-item" type="button" data-nav="library"><svg><use href="#i-library"/></svg><span>文献目录</span><em data-nav-count>0</em></button>
+        <button class="nav-item" type="button" data-nav="quality"><svg><use href="#i-check"/></svg><span>质量检查</span><em data-issue-count>0</em></button>
+        <button class="nav-item" type="button" data-nav="delivery"><svg><use href="#i-package"/></svg><span>交付中心</span></button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="storage-status"><span></span><div><strong>本地保存</strong><small data-save-status>所有更改已保存</small></div></div>
+        <p>数据仅保存在当前浏览器</p>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <button class="icon-button menu-button" type="button" data-menu aria-label="打开导航"><svg><use href="#i-menu"/></svg></button>
+        <div class="project-heading">
+          <p data-view-kicker>任务总览</p>
+          <h1 data-project-title>科技创新与产业升级文献整理</h1>
+        </div>
+        <div class="top-actions">
+          <button class="button button-secondary" type="button" data-import-trigger><svg><use href="#i-upload"/></svg><span>导入目录</span></button>
+          <button class="button button-primary" type="button" data-add-record><svg><use href="#i-plus"/></svg><span>添加文献</span></button>
+        </div>
+      </header>
+
+      <div class="view-stack">
+        <section class="view is-active" data-view="overview" aria-labelledby="overview-title">
+          <div class="welcome-row reveal">
+            <div>
+              <p class="eyebrow">截至 <span data-deadline-label>2026年7月19日</span></p>
+              <h2 id="overview-title">把 60 篇文献，整理成一套可复查的研究底稿。</h2>
+              <p>边界先行、检索留痕、题录一致、问题单列。每一步都能回到原始来源。</p>
+            </div>
+            <button class="text-link" type="button" data-nav="scope">检查任务边界 <svg><use href="#i-arrow"/></svg></button>
+          </div>
+
+          <div class="metric-grid reveal" aria-label="任务进度">
+            <article class="metric-card metric-primary"><span>总进度</span><strong><b data-total-count>0</b><small>/ <i data-total-target>60</i></small></strong><div class="meter"><i data-total-progress></i></div><p data-total-copy>尚未录入文献</p></article>
+            <article class="metric-card"><span>中文文献</span><strong><b data-cn-count>0</b><small>/ <i data-cn-target>40</i></small></strong><div class="meter"><i data-cn-progress></i></div><p data-cn-copy>还需 40 篇</p></article>
+            <article class="metric-card"><span>英文文献</span><strong><b data-en-count>0</b><small>/ <i data-en-target>20</i></small></strong><div class="meter"><i data-en-progress></i></div><p data-en-copy>还需 20 篇</p></article>
+            <article class="metric-card"><span>已完成核验</span><strong><b data-verified-count>0</b><small>篇</small></strong><div class="meter"><i data-verified-progress></i></div><p data-verified-copy>等待核验</p></article>
+          </div>
+
+          <div class="overview-grid">
+            <article class="panel workflow-panel reveal">
+              <div class="panel-heading"><div><p class="eyebrow">当前流程</p><h3>从检索到交付</h3></div><span class="status-pill" data-stage-pill>准备检索</span></div>
+              <ol class="workflow-steps">
+                <li data-step="scope"><span>01</span><div><strong>明确边界</strong><p>主题、年份、文献类型与排除条件</p></div><b></b></li>
+                <li data-step="queries"><span>02</span><div><strong>建立检索式</strong><p>中英文关键词、同义词与组合查询</p></div><b></b></li>
+                <li data-step="library"><span>03</span><div><strong>录入题录</strong><p>标题、摘要、作者、来源与原文链接</p></div><b></b></li>
+                <li data-step="quality"><span>04</span><div><strong>检查质量</strong><p>重复项、缺失字段与来源一致性</p></div><b></b></li>
+                <li data-step="delivery"><span>05</span><div><strong>整理交付</strong><p>CSV目录、JSON备份与质量报告</p></div><b></b></li>
+              </ol>
+            </article>
+
+            <article class="panel today-panel reveal">
+              <div class="panel-heading"><div><p class="eyebrow">下一步</p><h3>任务建议</h3></div><button class="icon-button" type="button" data-refresh-advice aria-label="刷新建议"><svg><use href="#i-refresh"/></svg></button></div>
+              <div class="advice-block" data-advice-block>
+                <span class="advice-index">01</span>
+                <div><strong data-advice-title>先确认研究主题</strong><p data-advice-copy>明确范围后再检索，可以减少后续返工。</p></div>
+              </div>
+              <button class="button button-dark full" type="button" data-advice-action>现在处理 <svg><use href="#i-arrow"/></svg></button>
+              <div class="mini-qa"><span>质量状态</span><strong data-mini-qa>尚无记录</strong><p data-mini-qa-copy>添加文献后会自动检查。</p></div>
+            </article>
+          </div>
+
+          <article class="panel recent-panel reveal">
+            <div class="panel-heading"><div><p class="eyebrow">最近更新</p><h3>文献记录</h3></div><button class="text-link" type="button" data-nav="library">查看全部 <svg><use href="#i-arrow"/></svg></button></div>
+            <div class="recent-list" data-recent-list></div>
+          </article>
+        </section>
+
+        <section class="view" data-view="scope" aria-labelledby="scope-title">
+          <div class="page-intro reveal"><p class="eyebrow">01 · DEFINE</p><h2 id="scope-title">研究边界</h2><p>先把“要找什么”和“什么不算”写清楚，检索式才不会无限扩张。</p></div>
+          <form class="scope-layout" data-scope-form novalidate>
+            <div class="panel form-panel reveal">
+              <div class="section-title"><span>研究任务</span><small>必填</small></div>
+              <div class="field"><label for="project-title">任务名称</label><input id="project-title" name="title" required value="科技创新与产业升级文献整理"></div>
+              <div class="field"><label for="research-topic">核心主题</label><textarea id="research-topic" name="topic" required rows="4">科技创新政策、企业创新能力与产业升级之间的作用机制</textarea><small>用一句话描述研究对象、关系与场景。</small></div>
+              <div class="form-row two"><div class="field"><label for="deadline">交付日期</label><input id="deadline" name="deadline" type="date" value="2026-07-19" required></div><div class="field"><label for="year-range">年份范围</label><input id="year-range" name="years" value="2015-2026"></div></div>
+              <div class="form-row two"><div class="field"><label for="cn-target">中文目标</label><input id="cn-target" name="cnTarget" type="number" min="0" value="40"></div><div class="field"><label for="en-target">英文目标</label><input id="en-target" name="enTarget" type="number" min="0" value="20"></div></div>
+            </div>
+
+            <div class="scope-side">
+              <div class="panel form-panel reveal">
+                <div class="section-title"><span>纳入与排除</span><small>用于筛选</small></div>
+                <div class="field"><label for="include-rules">纳入条件</label><textarea id="include-rules" name="include" rows="5">直接讨论科技创新、企业创新或产业升级；摘要和作者信息完整；来源可追溯；中文或英文。</textarea></div>
+                <div class="field"><label for="exclude-rules">排除条件</label><textarea id="exclude-rules" name="exclude" rows="5">新闻稿、营销软文、无作者来源材料；重复发表；仅提及关键词但不回答研究问题。</textarea></div>
+              </div>
+              <div class="panel form-panel reveal">
+                <div class="section-title"><span>文献类型</span><small>可多选</small></div>
+                <fieldset class="check-grid">
+                  <legend class="sr-only">选择文献类型</legend>
+                  <label><input type="checkbox" name="types" value="期刊论文" checked><span>期刊论文</span></label>
+                  <label><input type="checkbox" name="types" value="会议论文" checked><span>会议论文</span></label>
+                  <label><input type="checkbox" name="types" value="研究报告" checked><span>研究报告</span></label>
+                  <label><input type="checkbox" name="types" value="学位论文"><span>学位论文</span></label>
+                </fieldset>
+                <button class="button button-primary full" type="submit">保存研究边界</button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <section class="view" data-view="queries" aria-labelledby="queries-title">
+          <div class="page-intro reveal"><p class="eyebrow">02 · SEARCH</p><h2 id="queries-title">检索式工作室</h2><p>把主题拆成概念组，分别生成中文与英文布尔检索式，并保留每次查询记录。</p></div>
+          <div class="query-layout">
+            <form class="panel query-builder reveal" data-query-form>
+              <div class="section-title"><span>概念组</span><small>使用逗号分隔同义词</small></div>
+              <div class="field"><label for="concept-a">概念 A · 创新</label><input id="concept-a" name="a" value="科技创新, 技术创新, 创新能力"></div>
+              <div class="field"><label for="concept-b">概念 B · 主体</label><input id="concept-b" name="b" value="企业, 产业, 制造业"></div>
+              <div class="field"><label for="concept-c">概念 C · 结果</label><input id="concept-c" name="c" value="产业升级, 高质量发展, 生产率"></div>
+              <details class="advanced-query"><summary>英文概念组</summary><div class="details-body"><div class="field"><label for="concept-a-en">Concept A</label><input id="concept-a-en" name="aEn" value="technological innovation, innovation capability, R&D"></div><div class="field"><label for="concept-b-en">Concept B</label><input id="concept-b-en" name="bEn" value="firm, industry, manufacturing"></div><div class="field"><label for="concept-c-en">Concept C</label><input id="concept-c-en" name="cEn" value="industrial upgrading, productivity, high-quality development"></div></div></details>
+              <button class="button button-primary full" type="submit"><svg><use href="#i-search"/></svg>生成检索式</button>
+            </form>
+
+            <div class="query-results">
+              <article class="panel query-card reveal"><div class="query-card-head"><div><span>CN</span><strong>中文综合检索式</strong></div><button class="icon-button" type="button" data-copy-query="cn" aria-label="复制中文检索式"><svg><use href="#i-copy"/></svg></button></div><pre data-query-output="cn"></pre><div class="source-tags"><span>知网</span><span>万方</span><span>国家哲学社会科学文献中心</span></div></article>
+              <article class="panel query-card reveal"><div class="query-card-head"><div><span>EN</span><strong>English Boolean Query</strong></div><button class="icon-button" type="button" data-copy-query="en" aria-label="复制英文检索式"><svg><use href="#i-copy"/></svg></button></div><pre data-query-output="en"></pre><div class="source-tags"><span>Google Scholar</span><span>Web of Science</span><span>Scopus</span><span>OpenAlex</span></div></article>
+              <article class="panel search-log-panel reveal"><div class="panel-heading"><div><p class="eyebrow">检索留痕</p><h3>查询记录</h3></div><button class="button button-secondary small" type="button" data-log-query>记录本次检索</button></div><div class="search-log" data-search-log></div></article>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" data-view="library" aria-labelledby="library-title">
+          <div class="page-intro library-intro reveal"><div><p class="eyebrow">03 · ORGANIZE</p><h2 id="library-title">文献目录</h2><p>所有字段从原文录入。摘要、作者和来源信息缺失时会进入待核验队列。</p></div><div class="page-actions"><button class="button button-secondary" type="button" data-load-demo>载入演示数据</button><button class="button button-primary" type="button" data-add-record><svg><use href="#i-plus"/></svg>添加文献</button></div></div>
+          <div class="panel library-panel reveal">
+            <div class="library-toolbar">
+              <label class="search-box" for="library-search"><svg><use href="#i-search"/></svg><input id="library-search" type="search" placeholder="搜索标题、作者、关键词"></label>
+              <div class="filter-row"><label><span class="sr-only">语言</span><select data-filter-language><option value="all">全部语言</option><option value="中文">中文</option><option value="英文">英文</option></select></label><label><span class="sr-only">状态</span><select data-filter-status><option value="all">全部状态</option><option value="待补全">待补全</option><option value="待核验">待核验</option><option value="已核验">已核验</option></select></label><button class="icon-button" type="button" data-clear-filters aria-label="清除筛选"><svg><use href="#i-filter"/></svg></button></div>
+            </div>
+            <div class="bulk-bar" data-bulk-bar hidden><span>已选择 <b data-selected-count>0</b> 篇</span><div><button type="button" data-bulk-verify>标记已核验</button><button class="danger-link" type="button" data-bulk-delete>删除记录</button></div></div>
+            <div class="table-wrapper">
+              <table class="literature-table">
+                <thead><tr><th class="checkbox-col"><input type="checkbox" data-select-all aria-label="选择全部文献"></th><th>语言</th><th class="title-col">标题与来源</th><th>作者</th><th>年份</th><th>状态</th><th class="action-col">操作</th></tr></thead>
+                <tbody data-library-body></tbody>
+              </table>
+              <div class="empty-state" data-library-empty><svg><use href="#i-library"/></svg><h3>文献目录还是空的</h3><p>添加第一篇文献，或载入演示数据查看完整工作流。</p><button class="button button-primary" type="button" data-add-record>添加第一篇</button></div>
+            </div>
+            <div class="library-footer"><span data-library-summary>0 篇记录</span><span>数据自动保存在当前浏览器</span></div>
+          </div>
+        </section>
+
+        <section class="view" data-view="quality" aria-labelledby="quality-title">
+          <div class="page-intro reveal"><p class="eyebrow">04 · VERIFY</p><h2 id="quality-title">质量检查</h2><p>系统只负责发现问题，最后的判断仍然回到原始文献。</p></div>
+          <div class="quality-grid">
+            <article class="quality-card reveal"><span class="quality-icon"><svg><use href="#i-copy"/></svg></span><div><p>疑似重复</p><strong data-duplicate-count>0</strong><small>按题名和 DOI 检测</small></div><button type="button" data-issue-filter="duplicate">查看</button></article>
+            <article class="quality-card reveal"><span class="quality-icon"><svg><use href="#i-alert"/></svg></span><div><p>字段缺失</p><strong data-missing-count>0</strong><small>标题、摘要、作者等</small></div><button type="button" data-issue-filter="missing">查看</button></article>
+            <article class="quality-card reveal"><span class="quality-icon"><svg><use href="#i-link"/></svg></span><div><p>来源待核</p><strong data-source-count>0</strong><small>无 DOI 或原文链接</small></div><button type="button" data-issue-filter="source">查看</button></article>
+          </div>
+          <article class="panel issue-panel reveal">
+            <div class="panel-heading"><div><p class="eyebrow">问题清单</p><h3 data-issue-title>全部问题</h3></div><button class="button button-secondary small" type="button" data-run-quality><svg><use href="#i-refresh"/></svg>重新检查</button></div>
+            <div class="issue-list" data-issue-list></div>
+          </article>
+          <article class="panel checklist-panel reveal">
+            <div class="panel-heading"><div><p class="eyebrow">交付前终检</p><h3>四项核对</h3></div><span class="status-pill" data-checklist-status>0 / 4</span></div>
+            <div class="delivery-checks">
+              <label><input type="checkbox" data-final-check="quantity"><span><b>数量与语言</b><small>中文、英文及总数达到任务要求</small></span></label>
+              <label><input type="checkbox" data-final-check="mapping"><span><b>目录与文件</b><small>每条目录记录都有对应 PDF 文件名</small></span></label>
+              <label><input type="checkbox" data-final-check="metadata"><span><b>核心字段</b><small>标题、摘要、作者信息完整且无乱码</small></span></label>
+              <label><input type="checkbox" data-final-check="trace"><span><b>来源可追溯</b><small>保留 DOI、原文链接或检索来源</small></span></label>
+            </div>
+          </article>
+        </section>
+
+        <section class="view" data-view="delivery" aria-labelledby="delivery-title">
+          <div class="page-intro reveal"><p class="eyebrow">05 · DELIVER</p><h2 id="delivery-title">交付中心</h2><p>导出目录、备份和质量报告。所有文件都在浏览器本地生成。</p></div>
+          <div class="delivery-grid">
+            <article class="export-card reveal"><span><svg><use href="#i-file"/></svg></span><div><h3>文献目录 CSV</h3><p>适合在 Excel 中继续筛选、补充和提交。</p><small data-csv-status>包含 0 条记录</small></div><button class="button button-dark" type="button" data-export="csv"><svg><use href="#i-download"/></svg>导出 CSV</button></article>
+            <article class="export-card reveal"><span><svg><use href="#i-package"/></svg></span><div><h3>完整项目备份</h3><p>保存研究边界、检索式、文献与检查状态。</p><small>可再次导入当前工作台</small></div><button class="button button-dark" type="button" data-export="json"><svg><use href="#i-download"/></svg>导出 JSON</button></article>
+            <article class="export-card reveal"><span><svg><use href="#i-check"/></svg></span><div><h3>质量检查报告</h3><p>汇总完成度、重复项、缺失字段和终检结果。</p><small data-report-status>等待生成</small></div><button class="button button-dark" type="button" data-export="report"><svg><use href="#i-download"/></svg>导出报告</button></article>
+            <article class="export-card reveal"><span><svg><use href="#i-library"/></svg></span><div><h3>BibTeX 引用库</h3><p>将已录入题录转为可导入 Zotero、LaTeX 的引用格式。</p><small>保留 DOI、链接、关键词与摘要</small></div><button class="button button-dark" type="button" data-export="bibtex"><svg><use href="#i-download"/></svg>导出 BibTeX</button></article>
+          </div>
+          <article class="panel manifest-panel reveal">
+            <div class="panel-heading"><div><p class="eyebrow">交付清单</p><h3>文件命名与目录字段</h3></div><button class="button button-secondary small" type="button" data-copy-manifest><svg><use href="#i-copy"/></svg>复制规范</button></div>
+            <div class="manifest-grid"><div><span>PDF 文件名</span><code>语言-序号-年份-第一作者-题名.pdf</code><p>例：CN-001-2024-张三-科技创新政策.pdf</p></div><div><span>目录字段</span><code>序号｜语言｜标题｜摘要｜作者｜作者单位｜年份｜来源｜DOI｜链接｜文件名｜状态｜备注</code><p>CSV 已使用 UTF-8 BOM，Excel 可直接打开。</p></div></div>
+          </article>
+          <article class="panel readiness-panel reveal">
+            <div class="readiness-ring" data-readiness-ring><strong data-readiness-score>0</strong><span>%</span></div>
+            <div><p class="eyebrow">交付准备度</p><h3 data-readiness-title>先完成研究边界</h3><p data-readiness-copy>工作台会根据数量、字段完整性、核验状态和终检清单计算准备度。</p></div>
+            <button class="button button-primary" type="button" data-run-quality>运行最终检查</button>
+          </article>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <nav class="mobile-nav" aria-label="移动端导航">
+    <button class="is-active" type="button" data-nav="overview"><svg><use href="#i-grid"/></svg><span>总览</span></button>
+    <button type="button" data-nav="queries"><svg><use href="#i-search"/></svg><span>检索</span></button>
+    <button type="button" data-nav="library"><svg><use href="#i-library"/></svg><span>目录</span></button>
+    <button type="button" data-nav="quality"><svg><use href="#i-check"/></svg><span>质检</span></button>
+    <button type="button" data-nav="delivery"><svg><use href="#i-package"/></svg><span>交付</span></button>
+  </nav>
+
+  <div class="modal-backdrop" data-modal-backdrop hidden></div>
+  <section class="modal record-modal" data-record-modal role="dialog" aria-modal="true" aria-labelledby="record-modal-title" hidden>
+    <header><div><p class="eyebrow">题录记录</p><h2 id="record-modal-title">添加文献</h2></div><button class="icon-button" type="button" data-close-modal aria-label="关闭"><svg><use href="#i-close"/></svg></button></header>
+    <form data-record-form novalidate>
+      <input type="hidden" name="id">
+      <div class="form-row two"><div class="field"><label for="record-language">语言</label><select id="record-language" name="language"><option>中文</option><option>英文</option></select></div><div class="field"><label for="record-status">核验状态</label><select id="record-status" name="status"><option>待补全</option><option selected>待核验</option><option>已核验</option></select></div></div>
+      <div class="field"><label for="record-title">文献标题 <span>*</span></label><input id="record-title" name="title" required></div>
+      <div class="field"><label for="record-abstract">摘要 <span>*</span></label><textarea id="record-abstract" name="abstract" rows="5" required></textarea></div>
+      <div class="form-row two"><div class="field"><label for="record-authors">作者 <span>*</span></label><input id="record-authors" name="authors" required placeholder="多位作者用分号分隔"></div><div class="field"><label for="record-affiliation">作者单位</label><input id="record-affiliation" name="affiliation"></div></div>
+      <div class="form-row three"><div class="field"><label for="record-year">年份</label><input id="record-year" name="year" type="number" min="1900" max="2100"></div><div class="field"><label for="record-type">类型</label><select id="record-type" name="type"><option>期刊论文</option><option>会议论文</option><option>研究报告</option><option>学位论文</option><option>其他</option></select></div><div class="field"><label for="record-source">期刊 / 来源</label><input id="record-source" name="source"></div></div>
+      <div class="form-row two"><div class="field"><label for="record-doi">DOI</label><div class="inline-field"><input id="record-doi" name="doi"><button class="button button-secondary" type="button" data-doi-lookup>自动补全</button></div><small>通过 Crossref 公共接口读取题名、作者、年份与来源。</small></div><div class="field"><label for="record-url">原文链接</label><input id="record-url" name="url" type="url"></div></div>
+      <div class="form-row two"><div class="field"><label for="record-file">PDF 文件名</label><input id="record-file" name="fileName"></div><div class="field"><label for="record-database">检索来源</label><input id="record-database" name="database" placeholder="知网 / Google Scholar"></div></div>
+      <div class="field"><label for="record-keywords">关键词</label><input id="record-keywords" name="keywords" placeholder="使用逗号分隔"></div>
+      <div class="field"><label for="record-notes">备注</label><textarea id="record-notes" name="notes" rows="3"></textarea></div>
+      <footer><button class="button button-secondary" type="button" data-close-modal>取消</button><button class="button button-primary" type="submit">保存文献</button></footer>
+    </form>
+  </section>
+
+  <section class="modal confirm-modal" data-confirm-modal role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
+    <span class="confirm-icon"><svg><use href="#i-alert"/></svg></span><h2 id="confirm-title">删除这些记录？</h2><p data-confirm-copy>删除后无法撤销。建议先导出 JSON 备份。</p><footer><button class="button button-secondary" type="button" data-cancel-confirm>取消</button><button class="button button-danger" type="button" data-confirm-delete>删除记录</button></footer>
+  </section>
+
+  <input class="sr-only" type="file" accept=".csv,.json,.bib,.bibtex,.ris,application/json,text/csv,application/x-research-info-systems" data-import-input>
+  <div class="toast-region" aria-live="polite" aria-atomic="true" data-toast-region></div>
+  <script src="script.js"></script>
+</body>
+</html>
