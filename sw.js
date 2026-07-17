@@ -1,5 +1,5 @@
-var CACHE = 'litpath-workbench-v2';
-var CORE = ['./', './index.html', './styles.css', './script.js', './manifest.webmanifest', './assets/favicon.svg'];
+var CACHE = 'litpath-workbench-v3';
+var CORE = ['./', './index.html', './styles.css', './script.js', './manifest.webmanifest', './favicon.svg'];
 
 self.addEventListener('install', function (event) {
   event.waitUntil(caches.open(CACHE).then(function (cache) { return cache.addAll(CORE); }).then(function () { return self.skipWaiting(); }));
