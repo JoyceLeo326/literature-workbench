@@ -46,6 +46,7 @@
         <button class="nav-item" type="button" data-nav="scope"><svg><use href="#i-scope"/></svg><span>研究边界</span></button>
         <button class="nav-item" type="button" data-nav="queries"><svg><use href="#i-search"/></svg><span>检索式</span></button>
         <button class="nav-item" type="button" data-nav="library"><svg><use href="#i-library"/></svg><span>文献目录</span><em data-nav-count>0</em></button>
+        <button class="nav-item" type="button" data-nav="screening"><svg><use href="#i-filter"/></svg><span>筛选与综合</span><em data-screen-pending-count>0</em></button>
         <button class="nav-item" type="button" data-nav="quality"><svg><use href="#i-check"/></svg><span>质量检查</span><em data-issue-count>0</em></button>
         <button class="nav-item" type="button" data-nav="delivery"><svg><use href="#i-package"/></svg><span>交付中心</span></button>
       </nav>
@@ -94,8 +95,9 @@
                 <li data-step="scope"><span>01</span><div><strong>明确边界</strong><p>主题、年份、文献类型与排除条件</p></div><b></b></li>
                 <li data-step="queries"><span>02</span><div><strong>建立检索式</strong><p>中英文关键词、同义词与组合查询</p></div><b></b></li>
                 <li data-step="library"><span>03</span><div><strong>录入题录</strong><p>标题、摘要、作者、来源与原文链接</p></div><b></b></li>
-                <li data-step="quality"><span>04</span><div><strong>检查质量</strong><p>重复项、缺失字段与来源一致性</p></div><b></b></li>
-                <li data-step="delivery"><span>05</span><div><strong>整理交付</strong><p>CSV目录、JSON备份与质量报告</p></div><b></b></li>
+                <li data-step="screening"><span>04</span><div><strong>筛选与综合</strong><p>人工决策、证据矩阵与字段分布提示</p></div><b></b></li>
+                <li data-step="quality"><span>05</span><div><strong>检查质量</strong><p>重复项、缺失字段与来源一致性</p></div><b></b></li>
+                <li data-step="delivery"><span>06</span><div><strong>整理交付</strong><p>目录、完整备份与综合报告</p></div><b></b></li>
               </ol>
             </article>
 
@@ -187,8 +189,41 @@
           </div>
         </section>
 
+        <section class="view" data-view="screening" aria-labelledby="screening-title">
+          <div class="page-intro screening-intro reveal"><div><p class="eyebrow">04 · SYNTHESIZE</p><h2 id="screening-title">筛选与综合</h2><p>逐条记录人工筛选判断与证据摘记。等级和空白提示只描述当前工作台字段，不替代原文判断或系统综述。</p></div><button class="button button-secondary" type="button" data-export="synthesis"><svg><use href="#i-download"/></svg>导出 Markdown 综合</button></div>
+          <div class="screening-summary-grid reveal" data-screening-summary aria-label="筛选进度">
+            <article><span>待筛选</span><strong data-screen-pending>0</strong><small>尚未作出人工决定</small></article>
+            <article><span>已纳入</span><strong data-screen-included>0</strong><small>进入证据矩阵</small></article>
+            <article><span>已排除</span><strong data-screen-excluded>0</strong><small>应填写排除理由</small></article>
+            <article><span>核心发现</span><strong data-screen-findings>0</strong><small data-screen-completeness>0 / 0 条已纳入记录</small></article>
+          </div>
+          <article class="panel screening-panel reveal">
+            <div class="screening-toolbar">
+              <label class="search-box" for="screening-search"><svg><use href="#i-search"/></svg><input id="screening-search" data-screen-search type="search" placeholder="搜索题名、作者、发现或标签"></label>
+              <div class="filter-row screening-filters">
+                <label><span class="sr-only">筛选决定</span><select data-screen-filter-decision><option value="all">全部决定</option><option>未筛选</option><option>纳入</option><option>排除</option></select></label>
+                <label><span class="sr-only">证据等级</span><select data-screen-filter-grade><option value="all">全部等级</option><option>未评级</option><option>高</option><option>中</option><option>低</option></select></label>
+                <label><span class="sr-only">主题标签</span><select data-screen-filter-theme><option value="all">全部主题</option></select></label>
+                <button class="icon-button" type="button" data-clear-screen-filters aria-label="清除综合筛选"><svg><use href="#i-filter"/></svg></button>
+              </div>
+            </div>
+            <div class="table-wrapper evidence-table-wrapper">
+              <table class="evidence-table">
+                <thead><tr><th>题录</th><th>筛选决定</th><th>核心发现</th><th>证据等级</th><th>主题标签</th><th>排除理由</th></tr></thead>
+                <tbody data-screening-body></tbody>
+              </table>
+              <div class="empty-state compact" data-screening-empty><svg><use href="#i-filter"/></svg><h3>暂无可显示的题录</h3><p>先在文献目录添加记录，或清除当前筛选条件。</p></div>
+            </div>
+            <div class="library-footer"><span data-screening-visible>显示 0 / 0 篇</span><span>编辑后自动保存至当前浏览器</span></div>
+          </article>
+          <article class="panel gap-panel reveal">
+            <div class="panel-heading"><div><p class="eyebrow">字段分布</p><h3>研究空白提示</h3></div><span class="status-pill">描述性提示</span></div>
+            <div class="gap-summary" data-gap-summary></div>
+          </article>
+        </section>
+
         <section class="view" data-view="quality" aria-labelledby="quality-title">
-          <div class="page-intro reveal"><p class="eyebrow">04 · VERIFY</p><h2 id="quality-title">质量检查</h2><p>系统只负责发现问题，最后的判断仍然回到原始文献。</p></div>
+          <div class="page-intro reveal"><p class="eyebrow">05 · VERIFY</p><h2 id="quality-title">质量检查</h2><p>系统只负责发现问题，最后的判断仍然回到原始文献。</p></div>
           <div class="quality-grid">
             <article class="quality-card reveal"><span class="quality-icon"><svg><use href="#i-copy"/></svg></span><div><p>疑似重复</p><strong data-duplicate-count>0</strong><small>按题名和 DOI 检测</small></div><button type="button" data-issue-filter="duplicate">查看</button></article>
             <article class="quality-card reveal"><span class="quality-icon"><svg><use href="#i-alert"/></svg></span><div><p>字段缺失</p><strong data-missing-count>0</strong><small>标题、摘要、作者等</small></div><button type="button" data-issue-filter="missing">查看</button></article>
@@ -210,16 +245,17 @@
         </section>
 
         <section class="view" data-view="delivery" aria-labelledby="delivery-title">
-          <div class="page-intro reveal"><p class="eyebrow">05 · DELIVER</p><h2 id="delivery-title">交付中心</h2><p>导出目录、备份和质量报告。所有文件都在浏览器本地生成。</p></div>
+          <div class="page-intro reveal"><p class="eyebrow">06 · DELIVER</p><h2 id="delivery-title">交付中心</h2><p>导出目录、备份、综合与质量报告。所有文件都在浏览器本地生成。</p></div>
           <div class="delivery-grid">
             <article class="export-card reveal"><span><svg><use href="#i-file"/></svg></span><div><h3>文献目录 CSV</h3><p>适合在 Excel 中继续筛选、补充和提交。</p><small data-csv-status>包含 0 条记录</small></div><button class="button button-dark" type="button" data-export="csv"><svg><use href="#i-download"/></svg>导出 CSV</button></article>
             <article class="export-card reveal"><span><svg><use href="#i-package"/></svg></span><div><h3>完整项目备份</h3><p>保存研究边界、检索式、文献与检查状态。</p><small>可再次导入当前工作台</small></div><button class="button button-dark" type="button" data-export="json"><svg><use href="#i-download"/></svg>导出 JSON</button></article>
+            <article class="export-card reveal"><span><svg><use href="#i-filter"/></svg></span><div><h3>证据综合 Markdown</h3><p>汇总筛选统计、纳入矩阵、排除理由与字段分布提示。</p><small>依据人工录入字段生成，不构成正式综述结论</small></div><button class="button button-dark" type="button" data-export="synthesis"><svg><use href="#i-download"/></svg>导出 Markdown</button></article>
             <article class="export-card reveal"><span><svg><use href="#i-check"/></svg></span><div><h3>质量检查报告</h3><p>汇总完成度、重复项、缺失字段和终检结果。</p><small data-report-status>等待生成</small></div><button class="button button-dark" type="button" data-export="report"><svg><use href="#i-download"/></svg>导出报告</button></article>
             <article class="export-card reveal"><span><svg><use href="#i-library"/></svg></span><div><h3>BibTeX 引用库</h3><p>将已录入题录转为可导入 Zotero、LaTeX 的引用格式。</p><small>保留 DOI、链接、关键词与摘要</small></div><button class="button button-dark" type="button" data-export="bibtex"><svg><use href="#i-download"/></svg>导出 BibTeX</button></article>
           </div>
           <article class="panel manifest-panel reveal">
             <div class="panel-heading"><div><p class="eyebrow">交付清单</p><h3>文件命名与目录字段</h3></div><button class="button button-secondary small" type="button" data-copy-manifest><svg><use href="#i-copy"/></svg>复制规范</button></div>
-            <div class="manifest-grid"><div><span>PDF 文件名</span><code>语言-序号-年份-第一作者-题名.pdf</code><p>例：CN-001-2024-张三-科技创新政策.pdf</p></div><div><span>目录字段</span><code>序号｜语言｜标题｜摘要｜作者｜作者单位｜年份｜来源｜DOI｜链接｜文件名｜状态｜备注</code><p>CSV 已使用 UTF-8 BOM，Excel 可直接打开。</p></div></div>
+            <div class="manifest-grid"><div><span>PDF 文件名</span><code>语言-序号-年份-第一作者-题名.pdf</code><p>例：CN-001-2024-张三-科技创新政策.pdf</p></div><div><span>目录与综合字段</span><code>题录字段｜筛选决定｜排除理由｜核心发现｜证据等级｜主题标签</code><p>CSV 使用 UTF-8 BOM；完整 JSON 可往返保留全部字段。</p></div></div>
           </article>
           <article class="panel readiness-panel reveal">
             <div class="readiness-ring" data-readiness-ring><strong data-readiness-score>0</strong><span>%</span></div>
@@ -235,6 +271,7 @@
     <button class="is-active" type="button" data-nav="overview"><svg><use href="#i-grid"/></svg><span>总览</span></button>
     <button type="button" data-nav="queries"><svg><use href="#i-search"/></svg><span>检索</span></button>
     <button type="button" data-nav="library"><svg><use href="#i-library"/></svg><span>目录</span></button>
+    <button type="button" data-nav="screening"><svg><use href="#i-filter"/></svg><span>综合</span></button>
     <button type="button" data-nav="quality"><svg><use href="#i-check"/></svg><span>质检</span></button>
     <button type="button" data-nav="delivery"><svg><use href="#i-package"/></svg><span>交付</span></button>
   </nav>
@@ -263,6 +300,7 @@
 
   <input class="sr-only" type="file" accept=".csv,.json,.bib,.bibtex,.ris,application/json,text/csv,application/x-research-info-systems" data-import-input>
   <div class="toast-region" aria-live="polite" aria-atomic="true" data-toast-region></div>
+  <script src="literature-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

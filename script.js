@@ -2,7 +2,8 @@
   'use strict';
 
   var STORAGE_KEY = 'litpath-workbench-v1';
-  var VERSION = 1;
+  var VERSION = 2;
+  var Synthesis = window.LitpathSynthesis;
   var selectedIds = new Set();
   var pendingDelete = null;
   var issueFilter = 'all';
@@ -93,6 +94,7 @@
   }
 
   function normalizeRecord(record) {
+    var synthesis = Synthesis.normalizeSynthesis(record);
     return {
       id: record.id || uid(),
       language: record.language === '英文' ? '英文' : '中文',
@@ -110,6 +112,11 @@
       keywords: safeText(record.keywords).trim(),
       notes: safeText(record.notes).trim(),
       status: ['待补全', '待核验', '已核验'].indexOf(record.status) >= 0 ? record.status : '待核验',
+      screeningDecision: synthesis.screeningDecision,
+      exclusionReason: synthesis.exclusionReason,
+      coreFinding: synthesis.coreFinding,
+      evidenceGrade: synthesis.evidenceGrade,
+      themeTags: synthesis.themeTags,
       createdAt: record.createdAt || nowISO(),
       updatedAt: record.updatedAt || nowISO(),
       demo: Boolean(record.demo)
@@ -118,9 +125,9 @@
 
   function demoRecords() {
     return [
-      normalizeRecord({ language: '中文', title: '演示记录｜科技创新政策与企业创新绩效研究', abstract: '用于演示目录字段、筛选与质量检查的中文样例摘要，不作为正式文献交付。', authors: '示例作者甲；示例作者乙', affiliation: '示例研究机构', year: '2024', type: '期刊论文', source: '演示来源', database: '知网', keywords: '科技创新, 创新绩效', fileName: 'CN-001-2024-示例作者甲-科技创新政策.pdf', status: '已核验', demo: true }),
-      normalizeRecord({ language: '英文', title: 'Demo record | Technological innovation and productivity', abstract: 'An English demonstration abstract for testing metadata completion, filtering, and export. It is not part of a formal literature delivery.', authors: 'Example Author A; Example Author B', affiliation: 'Example Research Institute', year: '2023', type: '期刊论文', source: 'Demo Journal', doi: '10.0000/demo.2023.001', url: 'https://example.org/demo-001', database: 'Google Scholar', keywords: 'innovation, productivity', fileName: 'EN-001-2023-ExampleAuthor-TechnologicalInnovation.pdf', status: '已核验', demo: true }),
-      normalizeRecord({ language: '中文', title: '演示记录｜产业升级的创新驱动机制', abstract: '该记录用于测试待核验状态和来源检查，正式使用时应替换为数据库导出的原始摘要。', authors: '示例作者丙', affiliation: '示例高校', year: '2022', type: '研究报告', source: '演示报告', url: 'https://example.org/demo-002', database: '万方', keywords: '产业升级, 创新驱动', fileName: 'CN-002-2022-示例作者丙-产业升级.pdf', status: '待核验', demo: true }),
+      normalizeRecord({ language: '中文', title: '演示记录｜科技创新政策与企业创新绩效研究', abstract: '用于演示目录字段、筛选与质量检查的中文样例摘要，不作为正式文献交付。', authors: '示例作者甲；示例作者乙', affiliation: '示例研究机构', year: '2024', type: '期刊论文', source: '演示来源', database: '知网', keywords: '科技创新, 创新绩效', fileName: 'CN-001-2024-示例作者甲-科技创新政策.pdf', status: '已核验', screeningDecision: '纳入', coreFinding: '演示摘记：用于展示核心发现字段，不代表真实研究结论。', evidenceGrade: '高', themeTags: ['创新政策', '企业绩效'], demo: true }),
+      normalizeRecord({ language: '英文', title: 'Demo record | Technological innovation and productivity', abstract: 'An English demonstration abstract for testing metadata completion, filtering, and export. It is not part of a formal literature delivery.', authors: 'Example Author A; Example Author B', affiliation: 'Example Research Institute', year: '2023', type: '期刊论文', source: 'Demo Journal', doi: '10.0000/demo.2023.001', url: 'https://example.org/demo-001', database: 'Google Scholar', keywords: 'innovation, productivity', fileName: 'EN-001-2023-ExampleAuthor-TechnologicalInnovation.pdf', status: '已核验', screeningDecision: '纳入', coreFinding: 'Demo note for testing the evidence matrix; not a literature claim.', evidenceGrade: '中', themeTags: ['技术创新', '生产率'], demo: true }),
+      normalizeRecord({ language: '中文', title: '演示记录｜产业升级的创新驱动机制', abstract: '该记录用于测试待核验状态和来源检查，正式使用时应替换为数据库导出的原始摘要。', authors: '示例作者丙', affiliation: '示例高校', year: '2022', type: '研究报告', source: '演示报告', url: 'https://example.org/demo-002', database: '万方', keywords: '产业升级, 创新驱动', fileName: 'CN-002-2022-示例作者丙-产业升级.pdf', status: '待核验', screeningDecision: '排除', exclusionReason: '演示用排除理由：材料类型不符合当前边界。', demo: true }),
       normalizeRecord({ language: '英文', title: 'Demo record | Innovation capability in manufacturing firms', abstract: 'This record intentionally omits a source link so that the quality module can surface a traceability issue.', authors: 'Example Author C', affiliation: '', year: '2021', type: '会议论文', source: 'Demo Conference', database: 'OpenAlex', keywords: 'innovation capability, manufacturing', fileName: 'EN-002-2021-ExampleAuthor-InnovationCapability.pdf', status: '待核验', demo: true }),
       normalizeRecord({ language: '中文', title: '演示记录｜企业研发投入与高质量发展', abstract: '', authors: '示例作者丁', affiliation: '示例高校', year: '2020', type: '期刊论文', source: '演示期刊', database: '知网', keywords: '研发投入, 高质量发展', fileName: '', status: '待补全', demo: true }),
       normalizeRecord({ language: '中文', title: '演示记录｜产业升级的创新驱动机制', abstract: '故意保留的重复题名记录，用于展示重复检测与问题定位。', authors: '示例作者戊', affiliation: '示例机构', year: '2022', type: '期刊论文', source: '另一演示来源', database: '万方', keywords: '产业升级', fileName: 'CN-003-2022-示例作者戊-产业升级.pdf', status: '待核验', demo: true })
@@ -238,27 +245,32 @@
   function renderWorkflow() {
     var issues = analyzeQuality();
     var c = counts();
+    var screening = Synthesis.summarizeScreening(state.records);
     var steps = {
       scope: projectHasScope(),
       queries: Boolean(state.queries.cn && state.queries.en),
       library: c.total > 0,
-      quality: c.total > 0 && issues.length === 0,
+      screening: c.total > 0 && screening.pending === 0,
+      quality: c.total > 0 && screening.pending === 0 && issues.length === 0,
       delivery: Object.keys(state.finalChecks).every(function (key) { return state.finalChecks[key]; })
     };
     $$('.workflow-steps li').forEach(function (li) { li.classList.toggle('is-complete', Boolean(steps[li.getAttribute('data-step')])); });
-    var stage = !steps.scope ? '明确边界' : !steps.queries ? '准备检索' : !steps.library ? '开始录入' : issues.length ? '质量检查' : !steps.delivery ? '交付终检' : '可以交付';
+    var stage = !steps.scope ? '明确边界' : !steps.queries ? '准备检索' : !steps.library ? '开始录入' : !steps.screening ? '筛选证据' : issues.length ? '质量检查' : !steps.delivery ? '交付终检' : '可以交付';
     $('[data-stage-pill]').textContent = stage;
   }
 
   function getAdvice() {
     var issues = analyzeQuality();
     var c = counts();
+    var screening = Synthesis.summarizeScreening(state.records);
     if (!projectHasScope()) return { index: '01', title: '先确认研究主题', copy: '明确范围后再检索，可以减少后续返工。', view: 'scope' };
     if (!state.searchLogs.length) return { index: '02', title: '记录第一条检索式', copy: '保留平台、关键词和查询时间，后续才能复查。', view: 'queries' };
     if (!c.total) return { index: '03', title: '录入第一篇文献', copy: '从样例开始确认目录字段和摘要口径。', view: 'library' };
-    if (issues.length) return { index: '04', title: '处理 ' + issues.length + ' 个质量问题', copy: '优先补齐摘要、作者和来源，再处理重复项。', view: 'quality' };
-    if (c.verified < c.total) return { index: '04', title: '完成原文核验', copy: '还有 ' + (c.total - c.verified) + ' 篇记录尚未标记为已核验。', view: 'quality' };
-    return { index: '05', title: '生成交付文件', copy: '目录已经通过基础检查，可以导出并完成终检。', view: 'delivery' };
+    if (screening.pending) return { index: '04', title: '筛选 ' + screening.pending + ' 条待判断记录', copy: '逐条对照纳入与排除条件，判断不会由工作台自动生成。', view: 'screening' };
+    if (screening.findings < screening.included) return { index: '04', title: '补齐纳入记录的核心发现', copy: '回到原文摘记关键结果，并标注证据等级与主题。', view: 'screening' };
+    if (issues.length) return { index: '05', title: '处理 ' + issues.length + ' 个质量问题', copy: '优先补齐摘要、作者和来源，再处理重复项。', view: 'quality' };
+    if (c.verified < c.total) return { index: '05', title: '完成原文核验', copy: '还有 ' + (c.total - c.verified) + ' 篇记录尚未标记为已核验。', view: 'quality' };
+    return { index: '06', title: '生成交付文件', copy: '目录已经通过基础检查，可以导出并完成终检。', view: 'delivery' };
   }
   function renderAdvice() {
     var advice = getAdvice();
@@ -326,6 +338,74 @@
     var bar = $('[data-bulk-bar]');
     bar.hidden = selectedIds.size === 0;
     $('[data-selected-count]').textContent = selectedIds.size;
+  }
+
+  function screeningOption(value, current) {
+    return '<option value="' + escapeHTML(value) + '" ' + (value === current ? 'selected' : '') + '>' + escapeHTML(value) + '</option>';
+  }
+
+  function screeningFilters() {
+    return {
+      decision: $('[data-screen-filter-decision]').value,
+      evidenceGrade: $('[data-screen-filter-grade]').value,
+      theme: $('[data-screen-filter-theme]').value,
+      query: $('[data-screen-search]').value
+    };
+  }
+
+  function renderGapSummary() {
+    var gap = Synthesis.buildGapSummary(state.records);
+    var container = $('[data-gap-summary]');
+    var themeCopy = gap.themes.length
+      ? gap.themes.map(function (theme) { return '<span><b>' + escapeHTML(theme.name) + '</b><small>' + theme.count + ' 条</small></span>'; }).join('')
+      : '<p class="gap-empty">已纳入记录尚未添加主题标签。</p>';
+    var sparse = gap.themes.filter(function (theme) { return theme.count === 1; }).map(function (theme) { return theme.name; });
+    container.innerHTML = '<div class="gap-metrics">' +
+      '<div><strong>' + gap.incompleteFindings + '</strong><span>条核心发现待补</span></div>' +
+      '<div><strong>' + gap.ungradedEvidence + '</strong><span>条证据等级待标</span></div>' +
+      '<div><strong>' + gap.untaggedEvidence + '</strong><span>条主题标签待补</span></div>' +
+      '</div><div class="theme-distribution"><p>当前纳入记录的主题分布</p><div>' + themeCopy + '</div></div>' +
+      (sparse.length ? '<p class="gap-signal">低覆盖主题（当前仅 1 条记录）：' + escapeHTML(sparse.join('、')) + '。建议复核检索与筛选范围，不自动推断为真实研究空白。</p>' : '') +
+      '<p class="gap-note">' + escapeHTML(gap.note) + '</p>';
+  }
+
+  function renderScreening() {
+    var summary = Synthesis.summarizeScreening(state.records);
+    $('[data-screen-pending]').textContent = summary.pending;
+    $('[data-screen-included]').textContent = summary.included;
+    $('[data-screen-excluded]').textContent = summary.excluded;
+    $('[data-screen-findings]').textContent = summary.findings;
+    $('[data-screen-completeness]').textContent = summary.findings + ' / ' + summary.included + ' 条已纳入记录';
+    $$('[data-screen-pending-count]').forEach(function (el) { el.textContent = summary.pending; });
+
+    var themeSelect = $('[data-screen-filter-theme]');
+    var selectedTheme = themeSelect.value || 'all';
+    var themes = [];
+    state.records.forEach(function (record) {
+      Synthesis.normalizeSynthesis(record).themeTags.forEach(function (theme) { if (themes.indexOf(theme) < 0) themes.push(theme); });
+    });
+    themes.sort(function (a, b) { return a.localeCompare(b, 'zh-CN'); });
+    themeSelect.innerHTML = '<option value="all">全部主题</option>' + themes.map(function (theme) { return screeningOption(theme, selectedTheme); }).join('');
+    themeSelect.value = themes.indexOf(selectedTheme) >= 0 ? selectedTheme : 'all';
+
+    var records = Synthesis.filterEvidence(state.records, screeningFilters());
+    var body = $('[data-screening-body]');
+    body.innerHTML = records.map(function (record) {
+      var synthesis = Synthesis.normalizeSynthesis(record);
+      return '<tr data-record-id="' + escapeHTML(record.id) + '">' +
+        '<td data-label="题录"><strong class="evidence-title">' + escapeHTML(record.title || '未命名记录') + '</strong><small>' + escapeHTML(record.authors || '作者待补') + ' · ' + escapeHTML(record.year || '年份待补') + '</small></td>' +
+        '<td data-label="筛选决定"><select data-screen-field="screeningDecision" aria-label="' + escapeHTML(record.title || '未命名记录') + '的筛选决定">' + Synthesis.DECISIONS.map(function (value) { return screeningOption(value, synthesis.screeningDecision); }).join('') + '</select></td>' +
+        '<td data-label="核心发现"><textarea data-screen-field="coreFinding" rows="3" aria-label="' + escapeHTML(record.title || '未命名记录') + '的核心发现" placeholder="回到原文摘记，不自动生成">' + escapeHTML(synthesis.coreFinding) + '</textarea></td>' +
+        '<td data-label="证据等级"><select data-screen-field="evidenceGrade" aria-label="' + escapeHTML(record.title || '未命名记录') + '的证据等级">' + Synthesis.EVIDENCE_GRADES.map(function (value) { return screeningOption(value, synthesis.evidenceGrade); }).join('') + '</select></td>' +
+        '<td data-label="主题标签"><input data-screen-field="themeTags" aria-label="' + escapeHTML(record.title || '未命名记录') + '的主题标签" value="' + escapeHTML(synthesis.themeTags.join('，')) + '" placeholder="逗号分隔"></td>' +
+        '<td data-label="排除理由"><textarea data-screen-field="exclusionReason" rows="3" aria-label="' + escapeHTML(record.title || '未命名记录') + '的排除理由" placeholder="排除时填写">' + escapeHTML(synthesis.exclusionReason) + '</textarea></td>' +
+        '</tr>';
+    }).join('');
+    var empty = $('[data-screening-empty]');
+    empty.hidden = records.length > 0;
+    body.hidden = records.length === 0;
+    $('[data-screening-visible]').textContent = '显示 ' + records.length + ' / ' + state.records.length + ' 篇';
+    renderGapSummary();
   }
 
   function renderQuality() {
@@ -403,13 +483,14 @@
     renderAdvice();
     renderRecent();
     renderLibrary();
+    renderScreening();
     renderQuality();
     renderSearchLogs();
     fillForms();
   }
 
   function viewLabel(view) {
-    return { overview: '任务总览', scope: '研究边界', queries: '检索式', library: '文献目录', quality: '质量检查', delivery: '交付中心' }[view] || '任务总览';
+    return { overview: '任务总览', scope: '研究边界', queries: '检索式', library: '文献目录', screening: '筛选与综合', quality: '质量检查', delivery: '交付中心' }[view] || '任务总览';
   }
   function showView(view) {
     if (!$('[data-view="' + view + '"]')) view = 'overview';
@@ -631,9 +712,9 @@
     window.setTimeout(function () { URL.revokeObjectURL(url); }, 500);
   }
   function exportCSV() {
-    var headers = ['序号', '语言', '文献标题', '摘要', '作者', '作者单位', '发表年份', '文献类型', '期刊/会议/来源', '关键词', 'DOI', '原文链接', 'PDF文件名', '下载状态', '检索来源', '备注'];
+    var headers = ['序号', '语言', '文献标题', '摘要', '作者', '作者单位', '发表年份', '文献类型', '期刊/会议/来源', '关键词', 'DOI', '原文链接', 'PDF文件名', '下载状态', '检索来源', '备注', '筛选决定', '排除理由', '核心发现', '证据等级', '主题标签'];
     var rows = state.records.map(function (record, index) {
-      return [index + 1, record.language, record.title, record.abstract, record.authors, record.affiliation, record.year, record.type, record.source, record.keywords, record.doi, record.url, record.fileName, record.status, record.database, record.notes];
+      return [index + 1, record.language, record.title, record.abstract, record.authors, record.affiliation, record.year, record.type, record.source, record.keywords, record.doi, record.url, record.fileName, record.status, record.database, record.notes, record.screeningDecision, record.exclusionReason, record.coreFinding, record.evidenceGrade, record.themeTags.join('；')];
     });
     var csv = '\ufeff' + [headers].concat(rows).map(function (row) { return row.map(csvEscape).join(','); }).join('\r\n');
     downloadFile('文径-文献目录-' + new Date().toISOString().slice(0, 10) + '.csv', csv, 'text/csv;charset=utf-8');
@@ -642,6 +723,11 @@
   function exportJSON() {
     downloadFile('文径-完整备份-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(state, null, 2), 'application/json;charset=utf-8');
     toast('完整项目备份已导出');
+  }
+  function exportSynthesis() {
+    var content = Synthesis.buildMarkdownSynthesis(state.project, state.records);
+    downloadFile('文径-证据综合-' + new Date().toISOString().slice(0, 10) + '.md', content, 'text/markdown;charset=utf-8');
+    toast('Markdown 证据综合已导出');
   }
   function bibEscape(value) { return safeText(value).replace(/[{}]/g, '').replace(/\s+/g, ' ').trim(); }
   function bibKey(record, index) {
@@ -721,7 +807,7 @@
     if (rows.length < 2) throw new Error('CSV 中没有可导入的记录。');
     var headers = rows[0].map(function (header) { return header.trim(); });
     var aliases = {
-      language: ['语言'], title: ['文献标题', '标题', 'title'], abstract: ['摘要', 'abstract'], authors: ['作者', 'authors'], affiliation: ['作者单位', '单位'], year: ['发表年份', '年份', 'year'], type: ['文献类型', '类型'], source: ['期刊/会议/来源', '来源', '期刊', '期刊/会议'], keywords: ['关键词'], doi: ['DOI', 'doi'], url: ['原文链接', '链接', 'url'], fileName: ['PDF文件名', 'PDF 文件名', '文件名'], status: ['下载状态', '核验状态', '状态'], database: ['检索来源', '数据库'], notes: ['备注']
+      language: ['语言'], title: ['文献标题', '标题', 'title'], abstract: ['摘要', 'abstract'], authors: ['作者', 'authors'], affiliation: ['作者单位', '单位'], year: ['发表年份', '年份', 'year'], type: ['文献类型', '类型'], source: ['期刊/会议/来源', '来源', '期刊', '期刊/会议'], keywords: ['关键词'], doi: ['DOI', 'doi'], url: ['原文链接', '链接', 'url'], fileName: ['PDF文件名', 'PDF 文件名', '文件名'], status: ['下载状态', '核验状态', '状态'], database: ['检索来源', '数据库'], notes: ['备注'], screeningDecision: ['筛选决定'], exclusionReason: ['排除理由'], coreFinding: ['核心发现'], evidenceGrade: ['证据等级'], themeTags: ['主题标签']
     };
     var indexMap = {};
     Object.keys(aliases).forEach(function (key) {
@@ -831,7 +917,7 @@
   }
 
   function manifestText() {
-    return 'PDF 文件名：语言-序号-年份-第一作者-题名.pdf\n目录字段：序号｜语言｜标题｜摘要｜作者｜作者单位｜年份｜来源｜DOI｜原文链接｜PDF文件名｜状态｜检索来源｜备注';
+    return 'PDF 文件名：语言-序号-年份-第一作者-题名.pdf\n目录字段：序号｜语言｜标题｜摘要｜作者｜作者单位｜年份｜来源｜DOI｜原文链接｜PDF文件名｜状态｜检索来源｜备注｜筛选决定｜排除理由｜核心发现｜证据等级｜主题标签';
   }
 
   function bindEvents() {
@@ -872,6 +958,14 @@
       }
       var clear = event.target.closest('[data-clear-filters]');
       if (clear) { $('#library-search').value = ''; $('[data-filter-language]').value = 'all'; $('[data-filter-status]').value = 'all'; renderLibrary(); return; }
+      if (event.target.closest('[data-clear-screen-filters]')) {
+        $('[data-screen-search]').value = '';
+        $('[data-screen-filter-decision]').value = 'all';
+        $('[data-screen-filter-grade]').value = 'all';
+        $('[data-screen-filter-theme]').value = 'all';
+        renderScreening();
+        return;
+      }
       var issueButton = event.target.closest('[data-issue-filter]');
       if (issueButton) { issueFilter = issueButton.getAttribute('data-issue-filter'); renderQuality(); $('[data-issue-list]').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       if (event.target.closest('[data-run-quality]')) { issueFilter = 'all'; renderQuality(); toast('质量检查已完成'); showView('quality'); return; }
@@ -884,7 +978,7 @@
       var exportButton = event.target.closest('[data-export]');
       if (exportButton) {
         var type = exportButton.getAttribute('data-export');
-        if (type === 'csv') exportCSV(); else if (type === 'json') exportJSON(); else if (type === 'bibtex') exportBibTeX(); else exportReport();
+        if (type === 'csv') exportCSV(); else if (type === 'json') exportJSON(); else if (type === 'bibtex') exportBibTeX(); else if (type === 'synthesis') exportSynthesis(); else exportReport();
         return;
       }
       if (event.target.closest('[data-doi-lookup]')) { lookupDOI(); return; }
@@ -919,6 +1013,10 @@
     $('#library-search').addEventListener('input', renderLibrary);
     $('[data-filter-language]').addEventListener('change', renderLibrary);
     $('[data-filter-status]').addEventListener('change', renderLibrary);
+    $('[data-screen-search]').addEventListener('input', renderScreening);
+    $('[data-screen-filter-decision]').addEventListener('change', renderScreening);
+    $('[data-screen-filter-grade]').addEventListener('change', renderScreening);
+    $('[data-screen-filter-theme]').addEventListener('change', renderScreening);
     $('[data-select-all]').addEventListener('change', function (event) {
       filteredRecords().forEach(function (record) { if (event.target.checked) selectedIds.add(record.id); else selectedIds.delete(record.id); });
       renderLibrary();
@@ -928,6 +1026,21 @@
       if (!input) return;
       if (input.checked) selectedIds.add(input.getAttribute('data-select-record')); else selectedIds.delete(input.getAttribute('data-select-record'));
       renderLibrary();
+    });
+    $('[data-screening-body]').addEventListener('change', function (event) {
+      var field = event.target.closest('[data-screen-field]');
+      var row = field && field.closest('[data-record-id]');
+      if (!field || !row) return;
+      var record = state.records.filter(function (item) { return item.id === row.getAttribute('data-record-id'); })[0];
+      if (!record) return;
+      var key = field.getAttribute('data-screen-field');
+      record[key] = key === 'themeTags' ? Synthesis.splitThemeTags(field.value) : field.value;
+      Object.assign(record, Synthesis.normalizeSynthesis(record));
+      record.updatedAt = nowISO();
+      saveState('筛选信息已保存');
+      renderScreening();
+      renderWorkflow();
+      renderAdvice();
     });
     $$('[data-final-check]').forEach(function (input) {
       input.addEventListener('change', function () { state.finalChecks[input.getAttribute('data-final-check')] = input.checked; saveState(); renderQuality(); });
