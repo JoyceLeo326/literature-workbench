@@ -80,6 +80,11 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .storage-status strong, .storage-status small { display: block; }
 .storage-status strong { font-size: 12px; }
 .storage-status small { color: rgba(255,255,255,.5); font-size: 10px; margin-top: 2px; }
+.cost-boundary { margin-top: 14px; padding: 10px; display: flex; align-items: center; gap: 9px; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; background: rgba(255,255,255,.05); }
+.cost-boundary > span { width: 30px; height: 30px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 7px; background: rgba(215,168,88,.18); color: #efd29f; font-size: 11px; font-weight: 800; }
+.cost-boundary strong, .cost-boundary small { display: block; }
+.cost-boundary strong { font-size: 11px; }
+.cost-boundary small { margin-top: 1px; color: rgba(255,255,255,.48); font-size: 8px; }
 .sidebar-foot p { margin: 11px 0 0 18px; color: rgba(255,255,255,.38); font-size: 10px; }
 
 .workspace { margin-left: var(--sidebar); min-height: 100vh; min-height: 100dvh; }

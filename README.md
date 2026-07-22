@@ -3,7 +3,7 @@
 文径是一套本地优先的文献整理工作台，将文献任务拆成六个连续环节：
 
 - 在线体验：https://literature-workbench.vercel.app/
-- 生产部署：Vercel（桌面端、移动端与离线模式已验收）
+- 作品演示托管：Vercel Hobby（仅限个人、非商业用途）
 
 1. 明确研究边界；
 2. 生成并记录中英文检索式；
@@ -28,6 +28,12 @@
 - 按中英文分别生成规范化 PDF 文件名，并在导入时自动补齐缺失文件名；
 - 使用 `localStorage` 自动保存，数据不上传服务器；
 - PWA 离线缓存，支持桌面与移动端。
+
+## 成本与服务边界
+
+项目默认使用 `COST_MODE=zero_owner_cost`：不配置所有者侧付费 API、后台服务或自动账单。Crossref 公共接口失败或超限时会明确停止联网补全，手动录入、导入、筛选、综合和导出仍可继续。
+
+当前线上地址只作为 Vercel Hobby 个人、非商业作品演示。商业部署候选、`localStorage` 现状，以及尚未实现的 IndexedDB / BYOS 路线见 [项目所有者零固定成本策略](docs/zero-owner-cost.md)。
 
 ## 本地运行
 
@@ -56,8 +62,8 @@ python3 -m http.server 4173
 - CSV、JSON、BibTeX、Markdown 综合与质量报告导出；
 - Service Worker 缓存与离线重载。
 
-核心筛选与综合逻辑可使用 Node 内置测试运行：
+核心筛选、综合与零成本策略可使用 Node 内置测试运行：
 
 ```bash
-node --test tests/literature-synthesis.test.cjs
+node --test tests/literature-synthesis.test.cjs tests/zero-owner-cost.test.cjs
 ```

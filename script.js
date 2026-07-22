@@ -3,6 +3,8 @@
 
   var STORAGE_KEY = 'litpath-workbench-v1';
   var VERSION = 2;
+  var CostPolicy = window.LitpathCostPolicy;
+  var costPolicy = CostPolicy.createCostPolicy(window.LITPATH_CONFIG || {});
   var Synthesis = window.LitpathSynthesis;
   var selectedIds = new Set();
   var pendingDelete = null;
@@ -636,8 +638,7 @@
     var button = $('[data-doi-lookup]');
     button.disabled = true;
     button.textContent = '正在查询…';
-    fetch('https://api.crossref.org/works/' + encodeURIComponent(doi), { headers: { Accept: 'application/json' } })
-      .then(function (response) { if (!response.ok) throw new Error('Crossref 未找到该 DOI'); return response.json(); })
+    CostPolicy.requestPublicJson('crossref', 'https://api.crossref.org/works/' + encodeURIComponent(doi), window.fetch.bind(window))
       .then(function (payload) {
         var item = payload && payload.message ? payload.message : {};
         var authors = (item.author || []).map(function (author) { return [author.given, author.family].filter(Boolean).join(' '); }).join('; ');
@@ -652,7 +653,7 @@
         form.elements.doi.value = doi;
         toast('DOI 元数据已补全，请核对摘要与作者单位');
       })
-      .catch(function (error) { toast(error.message + '，请检查 DOI 后重试。', 'error'); })
+      .catch(function (error) { toast((error.message || 'Crossref 公共接口请求失败。') + ' 本地录入或导入仍可继续。', 'error'); })
       .finally(function () { button.disabled = false; button.textContent = '自动补全'; });
   }
 
@@ -1056,6 +1057,7 @@
   }
 
   fillForms();
+  $('[data-cost-mode]').setAttribute('data-cost-mode', costPolicy.mode);
   bindEvents();
   renderAll();
   showView(location.hash.replace('#', '') || 'overview');

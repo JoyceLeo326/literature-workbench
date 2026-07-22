@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#12372f">
-  <meta name="description" content="文径是一套从研究边界、检索式、文献目录到质量检查与交付导出的本地优先文献工作台。">
+  <meta name="description" content="文径是一套覆盖研究边界、检索、题录、筛选综合、质量检查与本地导出的零固定成本文献工作台。">
   <title>文径｜文献研究工作台</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
@@ -53,6 +53,7 @@
 
       <div class="sidebar-foot">
         <div class="storage-status"><span></span><div><strong>本地保存</strong><small data-save-status>所有更改已保存</small></div></div>
+        <div class="cost-boundary" data-cost-mode="zero_owner_cost"><span>¥0</span><div><strong>本地 0 成本</strong><small>无付费服务 · 无自动账单</small></div></div>
         <p>数据仅保存在当前浏览器</p>
       </div>
     </aside>
@@ -300,6 +301,7 @@
 
   <input class="sr-only" type="file" accept=".csv,.json,.bib,.bibtex,.ris,application/json,text/csv,application/x-research-info-systems" data-import-input>
   <div class="toast-region" aria-live="polite" aria-atomic="true" data-toast-region></div>
+  <script src="cost-policy.js"></script>
   <script src="literature-core.js"></script>
   <script src="script.js"></script>
 </body>
