@@ -93,6 +93,7 @@ test('creates and verifies a real same-device account credential', async () => {
 test('exposes project and optional account actions without internal cost copy', () => {
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const script = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
+  const serviceWorker = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 
   assert.match(index, /data-project-switcher/);
   assert.match(index, /data-create-project/);
@@ -118,4 +119,6 @@ test('exposes project and optional account actions without internal cost copy', 
   assert.match(script, /addEventListener\('beforeunload'/);
   assert.doesNotMatch(script, /record\.type === '学位论文' \? 'thesis'/);
   assert.match(script, /type === 'misc' \? '学位论文'/);
+  assert.match(serviceWorker, /!response \|\| !response\.ok/);
+  assert.match(serviceWorker, /caches\.match\('\.\/index\.html'\)/);
 });

@@ -1,5 +1,5 @@
 var CACHE_PREFIX = 'litpath-workbench-';
-var CACHE = CACHE_PREFIX + 'v8';
+var CACHE = CACHE_PREFIX + 'v9';
 var CORE = ['./', './index.html', './styles.css', './cost-policy.js', './literature-core.js', './workspace-core.js', './account-core.js', './script.js', './manifest.webmanifest', './favicon.svg'];
 
 self.addEventListener('install', function (event) {
@@ -18,12 +18,18 @@ self.addEventListener('fetch', function (event) {
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
   if (event.request.mode === 'navigate') {
     event.respondWith(fetch(event.request).then(function (response) {
-      return response;
-    }).catch(function () { return caches.match('./index.html'); }));
+      if (response && response.ok) return response;
+      return caches.match('./index.html').then(function (cached) { return cached || response; });
+    }).catch(function () {
+      return caches.match('./index.html').then(function (cached) { return cached || caches.match('./'); });
+    }));
     return;
   }
   event.respondWith(fetch(event.request).then(function (response) {
-    if (response.ok && response.headers.get('Cache-Control') !== 'no-store') {
+    if (!response || !response.ok) {
+      return caches.match(event.request).then(function (cached) { return cached || response; });
+    }
+    if (response.headers.get('Cache-Control') !== 'no-store') {
       caches.open(CACHE).then(function (cache) { cache.put(event.request, response.clone()); });
     }
     return response;
