@@ -1,19 +1,35 @@
 (function () {
   'use strict';
 
-  var STORAGE_KEY = 'litpath-workbench-v1';
+  var LEGACY_STORAGE_KEY = 'litpath-workbench-v1';
+  var WORKSPACE_STORAGE_KEY = 'litpath-workspaces-v1';
+  var ACCOUNT_STORAGE_KEY = 'litpath-local-accounts-v1';
+  var SESSION_ACCOUNT_KEY = 'litpath-account-session-v1';
   var VERSION = 2;
   var CostPolicy = window.LitpathCostPolicy;
   var costPolicy = CostPolicy.createCostPolicy(window.LITPATH_CONFIG || {});
   var Synthesis = window.LitpathSynthesis;
+  var Workspace = window.LitpathWorkspace;
+  var Account = window.LitpathAccount;
   var selectedIds = new Set();
   var pendingDelete = null;
   var issueFilter = 'all';
+  var dirtyForms = new Set();
+  var screeningSaveTimer = null;
+  var dialogReturnFocus = null;
 
   function $(selector, root) { return (root || document).querySelector(selector); }
   function $$(selector, root) { return Array.prototype.slice.call((root || document).querySelectorAll(selector)); }
   function uid() { return 'lit-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
   function nowISO() { return new Date().toISOString(); }
+  function localDateStamp(value) {
+    var date = value || new Date();
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0')
+    ].join('-');
+  }
   function safeText(value) { return String(value == null ? '' : value); }
   function escapeHTML(value) {
     return safeText(value).replace(/[&<>'"]/g, function (char) {
@@ -34,71 +50,82 @@
   }
 
   function defaultState() {
-    return {
-      version: VERSION,
-      project: {
-        title: '科技创新与产业升级文献整理',
-        topic: '科技创新政策、企业创新能力与产业升级之间的作用机制',
-        deadline: '2026-07-19',
-        years: '2015-2026',
-        cnTarget: 40,
-        enTarget: 20,
-        include: '直接讨论科技创新、企业创新或产业升级；摘要和作者信息完整；来源可追溯；中文或英文。',
-        exclude: '新闻稿、营销软文、无作者来源材料；重复发表；仅提及关键词但不回答研究问题。',
-        types: ['期刊论文', '会议论文', '研究报告']
-      },
-      concepts: {
-        a: '科技创新, 技术创新, 创新能力',
-        b: '企业, 产业, 制造业',
-        c: '产业升级, 高质量发展, 生产率',
-        aEn: 'technological innovation, innovation capability, R&D',
-        bEn: 'firm, industry, manufacturing',
-        cEn: 'industrial upgrading, productivity, high-quality development'
-      },
-      queries: { cn: '', en: '' },
-      searchLogs: [],
-      records: [],
-      finalChecks: { quantity: false, mapping: false, metadata: false, trace: false },
-      updatedAt: nowISO()
-    };
+    return Workspace.createProjectState();
   }
 
-  function loadState() {
+  function activeAccountId() {
+    return sessionStorage.getItem(SESSION_ACCOUNT_KEY) || 'guest';
+  }
+
+  function scopedWorkspaceKey() {
+    return WORKSPACE_STORAGE_KEY + ':' + activeAccountId();
+  }
+
+  function loadWorkspace() {
     try {
-      var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || typeof saved !== 'object') return defaultState();
-      var base = defaultState();
-      return {
-        version: VERSION,
-        project: Object.assign(base.project, saved.project || {}),
-        concepts: Object.assign(base.concepts, saved.concepts || {}),
-        queries: Object.assign(base.queries, saved.queries || {}),
-        searchLogs: Array.isArray(saved.searchLogs) ? saved.searchLogs : [],
-        records: Array.isArray(saved.records) ? saved.records.map(normalizeRecord) : [],
-        finalChecks: Object.assign(base.finalChecks, saved.finalChecks || {}),
-        updatedAt: saved.updatedAt || nowISO()
-      };
+      var saved = JSON.parse(localStorage.getItem(scopedWorkspaceKey()) || 'null');
+      var legacy = activeAccountId() === 'guest' ? JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || 'null') : null;
+      var normalized = Workspace.normalizeWorkspace(saved, legacy);
+      normalized.projects = normalized.projects.map(function (project) {
+        project.records = normalizeRecordList(project.records);
+        project.searchLogs = Array.isArray(project.searchLogs) ? project.searchLogs.map(normalizeSearchLog) : [];
+        return project;
+      });
+      return normalized;
     } catch (error) {
-      return defaultState();
+      return Workspace.normalizeWorkspace(null, null);
     }
   }
 
-  var state = loadState();
+  var workspace = loadWorkspace();
+  var state = Workspace.getActiveProject(workspace);
+
+  function renderSaveStatus(message) {
+    var status = $('[data-save-status]');
+    if (status) status.textContent = dirtyForms.size ? '有未提交更改' : (message || '所有更改已保存');
+  }
+  function markFormDirty(form) {
+    if (!form) return;
+    dirtyForms.add(form);
+    renderSaveStatus();
+  }
+  function clearFormDirty(form) {
+    if (form) dirtyForms.delete(form);
+    renderSaveStatus();
+  }
+  function confirmDiscardForm(form, message) {
+    if (!form || !dirtyForms.has(form)) return true;
+    if (!window.confirm(message || '当前表单有未提交更改。仍要关闭吗？')) return false;
+    clearFormDirty(form);
+    return true;
+  }
+  function confirmDiscardAll(message) {
+    if (!dirtyForms.size) return true;
+    if (!window.confirm(message || '当前表单有未提交更改。仍要继续吗？')) return false;
+    dirtyForms.clear();
+    renderSaveStatus();
+    return true;
+  }
+  function confirmPendingTransition(message) {
+    return !dirtyForms.size || window.confirm(message || '当前表单有未提交更改。仍要继续吗？');
+  }
 
   function saveState(message) {
     state.updatedAt = nowISO();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    workspace = Workspace.upsertActiveProject(workspace, state);
+    localStorage.setItem(scopedWorkspaceKey(), JSON.stringify(workspace));
     var status = $('[data-save-status]');
     if (status) {
       status.textContent = '正在保存…';
-      window.setTimeout(function () { status.textContent = message || '所有更改已保存'; }, 180);
+      window.setTimeout(function () { renderSaveStatus(message); }, 180);
     }
   }
 
   function normalizeRecord(record) {
+    record = record && typeof record === 'object' ? record : {};
     var synthesis = Synthesis.normalizeSynthesis(record);
     return {
-      id: record.id || uid(),
+      id: Workspace.safeId(record.id, 'lit'),
       language: record.language === '英文' ? '英文' : '中文',
       title: safeText(record.title).trim(),
       abstract: safeText(record.abstract).trim(),
@@ -125,15 +152,31 @@
     };
   }
 
-  function demoRecords() {
-    return [
-      normalizeRecord({ language: '中文', title: '演示记录｜科技创新政策与企业创新绩效研究', abstract: '用于演示目录字段、筛选与质量检查的中文样例摘要，不作为正式文献交付。', authors: '示例作者甲；示例作者乙', affiliation: '示例研究机构', year: '2024', type: '期刊论文', source: '演示来源', database: '知网', keywords: '科技创新, 创新绩效', fileName: 'CN-001-2024-示例作者甲-科技创新政策.pdf', status: '已核验', screeningDecision: '纳入', coreFinding: '演示摘记：用于展示核心发现字段，不代表真实研究结论。', evidenceGrade: '高', themeTags: ['创新政策', '企业绩效'], demo: true }),
-      normalizeRecord({ language: '英文', title: 'Demo record | Technological innovation and productivity', abstract: 'An English demonstration abstract for testing metadata completion, filtering, and export. It is not part of a formal literature delivery.', authors: 'Example Author A; Example Author B', affiliation: 'Example Research Institute', year: '2023', type: '期刊论文', source: 'Demo Journal', doi: '10.0000/demo.2023.001', url: 'https://example.org/demo-001', database: 'Google Scholar', keywords: 'innovation, productivity', fileName: 'EN-001-2023-ExampleAuthor-TechnologicalInnovation.pdf', status: '已核验', screeningDecision: '纳入', coreFinding: 'Demo note for testing the evidence matrix; not a literature claim.', evidenceGrade: '中', themeTags: ['技术创新', '生产率'], demo: true }),
-      normalizeRecord({ language: '中文', title: '演示记录｜产业升级的创新驱动机制', abstract: '该记录用于测试待核验状态和来源检查，正式使用时应替换为数据库导出的原始摘要。', authors: '示例作者丙', affiliation: '示例高校', year: '2022', type: '研究报告', source: '演示报告', url: 'https://example.org/demo-002', database: '万方', keywords: '产业升级, 创新驱动', fileName: 'CN-002-2022-示例作者丙-产业升级.pdf', status: '待核验', screeningDecision: '排除', exclusionReason: '演示用排除理由：材料类型不符合当前边界。', demo: true }),
-      normalizeRecord({ language: '英文', title: 'Demo record | Innovation capability in manufacturing firms', abstract: 'This record intentionally omits a source link so that the quality module can surface a traceability issue.', authors: 'Example Author C', affiliation: '', year: '2021', type: '会议论文', source: 'Demo Conference', database: 'OpenAlex', keywords: 'innovation capability, manufacturing', fileName: 'EN-002-2021-ExampleAuthor-InnovationCapability.pdf', status: '待核验', demo: true }),
-      normalizeRecord({ language: '中文', title: '演示记录｜企业研发投入与高质量发展', abstract: '', authors: '示例作者丁', affiliation: '示例高校', year: '2020', type: '期刊论文', source: '演示期刊', database: '知网', keywords: '研发投入, 高质量发展', fileName: '', status: '待补全', demo: true }),
-      normalizeRecord({ language: '中文', title: '演示记录｜产业升级的创新驱动机制', abstract: '故意保留的重复题名记录，用于展示重复检测与问题定位。', authors: '示例作者戊', affiliation: '示例机构', year: '2022', type: '期刊论文', source: '另一演示来源', database: '万方', keywords: '产业升级', fileName: 'CN-003-2022-示例作者戊-产业升级.pdf', status: '待核验', demo: true })
-    ];
+  function normalizeSearchLog(log) {
+    log = log && typeof log === 'object' ? log : {};
+    var createdAt = safeText(log.createdAt);
+    if (!createdAt || Number.isNaN(new Date(createdAt).getTime())) createdAt = nowISO();
+    return {
+      id: Workspace.safeId(log.id, 'log'),
+      platform: safeText(log.platform).trim().slice(0, 120),
+      note: safeText(log.note).trim().slice(0, 500),
+      language: ['中文', '英文', '中英'].indexOf(log.language) >= 0 ? log.language : '中英',
+      createdAt: createdAt
+    };
+  }
+
+  function normalizeRecordList(records, reservedIds) {
+    var used = new Set(Array.isArray(reservedIds) ? reservedIds : []);
+    return (Array.isArray(records) ? records : []).map(function (record) {
+      var normalized = normalizeRecord(record);
+      while (used.has(normalized.id)) normalized.id = Workspace.safeId('', 'lit');
+      used.add(normalized.id);
+      return normalized;
+    });
+  }
+
+  function formalRecords() {
+    return Workspace.formalRecords(state.records);
   }
 
   function splitTerms(value) {
@@ -156,19 +199,42 @@
   function normalizeDOI(value) {
     return safeText(value).toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, '').replace(/\s+/g, '');
   }
+  function isValidPublicationYear(value) {
+    var year = safeText(value).trim();
+    if (!year) return true;
+    var maximum = new Date().getFullYear() + 1;
+    return /^\d{4}$/.test(year) && Number(year) >= 1900 && Number(year) <= maximum;
+  }
+  function isValidDOI(value) {
+    var doi = normalizeDOI(value);
+    return !doi || /^10\.\d{4,9}\/\S+$/i.test(doi);
+  }
+  function isValidSourceUrl(value) {
+    var url = safeText(value).trim();
+    if (!url) return true;
+    try {
+      var parsed = new URL(url);
+      return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    } catch (error) {
+      return false;
+    }
+  }
 
   function analyzeQuality() {
     var issues = [];
     var titleMap = {};
     var doiMap = {};
-    state.records.forEach(function (record) {
+    formalRecords().forEach(function (record) {
       var missing = [];
       ['title', 'abstract', 'authors'].forEach(function (key) { if (!record[key]) missing.push({ title: 'title', abstract: '摘要', authors: '作者' }[key]); });
       if (!record.year) missing.push('年份');
       if (!record.source) missing.push('期刊 / 来源');
       if (!record.fileName) missing.push('PDF 文件名');
       if (missing.length) issues.push({ type: 'missing', id: record.id, title: record.title || '未命名记录', message: '缺少：' + missing.join('、') });
+      if (record.year && !isValidPublicationYear(record.year)) issues.push({ type: 'missing', id: record.id, title: record.title || '未命名记录', message: '年份格式或范围无效' });
       if (!record.doi && !record.url) issues.push({ type: 'source', id: record.id, title: record.title || '未命名记录', message: '缺少 DOI 或原文链接，来源不可直接追溯' });
+      if (record.doi && !isValidDOI(record.doi)) issues.push({ type: 'source', id: record.id, title: record.title || '未命名记录', message: 'DOI 格式无效，请回到来源核对' });
+      if (record.url && !isValidSourceUrl(record.url)) issues.push({ type: 'source', id: record.id, title: record.title || '未命名记录', message: '原文链接格式无效' });
       var titleKey = normalizeTitle(record.title);
       if (titleKey) {
         titleMap[titleKey] = titleMap[titleKey] || [];
@@ -196,10 +262,11 @@
   }
 
   function counts() {
-    var cn = state.records.filter(function (record) { return record.language === '中文'; }).length;
-    var en = state.records.filter(function (record) { return record.language === '英文'; }).length;
-    var verified = state.records.filter(function (record) { return record.status === '已核验'; }).length;
-    return { total: state.records.length, cn: cn, en: en, verified: verified };
+    var records = formalRecords();
+    var cn = records.filter(function (record) { return record.language === '中文'; }).length;
+    var en = records.filter(function (record) { return record.language === '英文'; }).length;
+    var verified = records.filter(function (record) { return record.status === '已核验'; }).length;
+    return { total: records.length, cn: cn, en: en, verified: verified };
   }
 
   function setProgress(selector, value) {
@@ -247,7 +314,7 @@
   function renderWorkflow() {
     var issues = analyzeQuality();
     var c = counts();
-    var screening = Synthesis.summarizeScreening(state.records);
+    var screening = Synthesis.summarizeScreening(formalRecords());
     var steps = {
       scope: projectHasScope(),
       queries: Boolean(state.queries.cn && state.queries.en),
@@ -264,7 +331,7 @@
   function getAdvice() {
     var issues = analyzeQuality();
     var c = counts();
-    var screening = Synthesis.summarizeScreening(state.records);
+    var screening = Synthesis.summarizeScreening(formalRecords());
     if (!projectHasScope()) return { index: '01', title: '先确认研究主题', copy: '明确范围后再检索，可以减少后续返工。', view: 'scope' };
     if (!state.searchLogs.length) return { index: '02', title: '记录第一条检索式', copy: '保留平台、关键词和查询时间，后续才能复查。', view: 'queries' };
     if (!c.total) return { index: '03', title: '录入第一篇文献', copy: '从样例开始确认目录字段和摘要口径。', view: 'library' };
@@ -281,13 +348,13 @@
     $('[data-advice-copy]').textContent = advice.copy;
     $('[data-advice-action]').setAttribute('data-target-view', advice.view);
     var issues = analyzeQuality();
-    $('[data-mini-qa]').textContent = state.records.length ? (issues.length ? issues.length + ' 个问题待处理' : '基础检查通过') : '尚无记录';
-    $('[data-mini-qa-copy]').textContent = state.records.length ? (issues.length ? '进入质量检查定位问题。' : '继续完成原文核验和交付清单。') : '添加文献后会自动检查。';
+    $('[data-mini-qa]').textContent = formalRecords().length ? (issues.length ? issues.length + ' 个问题待处理' : '基础检查通过') : '尚无记录';
+    $('[data-mini-qa-copy]').textContent = formalRecords().length ? (issues.length ? '进入质量检查定位问题。' : '继续完成原文核验和交付清单。') : '添加文献后会自动检查。';
   }
 
   function renderRecent() {
     var container = $('[data-recent-list]');
-    var records = state.records.slice().sort(function (a, b) { return new Date(b.updatedAt) - new Date(a.updatedAt); }).slice(0, 4);
+    var records = formalRecords().slice().sort(function (a, b) { return new Date(b.updatedAt) - new Date(a.updatedAt); }).slice(0, 4);
     if (!records.length) {
       container.innerHTML = '<div class="recent-empty">尚无文献记录。目录更新后会出现在这里。</div>';
       return;
@@ -301,7 +368,7 @@
     var search = safeText($('#library-search').value).trim().toLowerCase();
     var language = $('[data-filter-language]').value;
     var status = $('[data-filter-status]').value;
-    return state.records.filter(function (record) {
+    return formalRecords().filter(function (record) {
       var haystack = [record.title, record.authors, record.keywords, record.source].join(' ').toLowerCase();
       return (!search || haystack.indexOf(search) >= 0) && (language === 'all' || record.language === language) && (status === 'all' || record.status === status);
     });
@@ -310,25 +377,27 @@
   function statusClass(status) { return status === '已核验' ? 'complete' : status === '待补全' ? 'missing' : 'review'; }
   function renderLibrary() {
     var records = filteredRecords();
+    var total = formalRecords().length;
     var body = $('[data-library-body]');
     var empty = $('[data-library-empty]');
     body.innerHTML = records.map(function (record) {
-      return '<tr class="' + (selectedIds.has(record.id) ? 'is-selected' : '') + '" data-record-id="' + record.id + '">' +
-        '<td><input type="checkbox" data-select-record="' + record.id + '" aria-label="选择 ' + escapeHTML(record.title || '未命名记录') + '" ' + (selectedIds.has(record.id) ? 'checked' : '') + '></td>' +
+      var safeId = escapeHTML(record.id);
+      return '<tr class="' + (selectedIds.has(record.id) ? 'is-selected' : '') + '" data-record-id="' + safeId + '">' +
+        '<td><input type="checkbox" data-select-record="' + safeId + '" aria-label="选择 ' + escapeHTML(record.title || '未命名记录') + '" ' + (selectedIds.has(record.id) ? 'checked' : '') + '></td>' +
         '<td><span class="language-badge ' + (record.language === '英文' ? 'en' : '') + '">' + record.language + '</span></td>' +
-        '<td><strong class="record-title">' + escapeHTML(record.title || '未命名记录') + '</strong><small class="record-source">' + escapeHTML(record.source || '来源待补') + ' · ' + escapeHTML(record.type) + (record.demo ? ' · 演示数据' : '') + '</small></td>' +
+        '<td><strong class="record-title">' + escapeHTML(record.title || '未命名记录') + '</strong><small class="record-source">' + escapeHTML(record.source || '来源待补') + ' · ' + escapeHTML(record.type) + (record.demo ? ' · 示例资料' : '') + '</small></td>' +
         '<td>' + escapeHTML(record.authors || '待补') + '</td>' +
         '<td>' + escapeHTML(record.year || '—') + '</td>' +
         '<td><span class="record-status ' + statusClass(record.status) + '">' + record.status + '</span></td>' +
-        '<td><div class="row-actions"><button type="button" data-edit-record="' + record.id + '" aria-label="编辑文献"><svg><use href="#i-edit"/></svg></button><button type="button" data-delete-record="' + record.id + '" aria-label="删除文献"><svg><use href="#i-trash"/></svg></button></div></td></tr>';
+        '<td><div class="row-actions"><button type="button" data-edit-record="' + safeId + '" aria-label="编辑文献"><svg><use href="#i-edit"/></svg></button><button type="button" data-delete-record="' + safeId + '" aria-label="删除文献"><svg><use href="#i-trash"/></svg></button></div></td></tr>';
     }).join('');
-    empty.hidden = state.records.length > 0;
+    empty.hidden = total > 0;
     body.hidden = records.length === 0;
-    if (state.records.length && !records.length) {
+    if (total && !records.length) {
       empty.hidden = false;
       empty.innerHTML = '<svg><use href="#i-search"/></svg><h3>没有匹配的记录</h3><p>尝试不同关键词，或清除当前筛选条件。</p><button class="button button-secondary" type="button" data-clear-filters>清除筛选</button>';
     }
-    $('[data-library-summary]').textContent = records.length === state.records.length ? state.records.length + ' 篇记录' : '显示 ' + records.length + ' / ' + state.records.length + ' 篇';
+    $('[data-library-summary]').textContent = records.length === total ? total + ' 篇记录' : '显示 ' + records.length + ' / ' + total + ' 篇';
     var selectAll = $('[data-select-all]');
     var visibleIds = records.map(function (record) { return record.id; });
     selectAll.checked = visibleIds.length > 0 && visibleIds.every(function (id) { return selectedIds.has(id); });
@@ -356,7 +425,7 @@
   }
 
   function renderGapSummary() {
-    var gap = Synthesis.buildGapSummary(state.records);
+    var gap = Synthesis.buildGapSummary(formalRecords());
     var container = $('[data-gap-summary]');
     var themeCopy = gap.themes.length
       ? gap.themes.map(function (theme) { return '<span><b>' + escapeHTML(theme.name) + '</b><small>' + theme.count + ' 条</small></span>'; }).join('')
@@ -372,7 +441,8 @@
   }
 
   function renderScreening() {
-    var summary = Synthesis.summarizeScreening(state.records);
+    var official = formalRecords();
+    var summary = Synthesis.summarizeScreening(official);
     $('[data-screen-pending]').textContent = summary.pending;
     $('[data-screen-included]').textContent = summary.included;
     $('[data-screen-excluded]').textContent = summary.excluded;
@@ -383,14 +453,14 @@
     var themeSelect = $('[data-screen-filter-theme]');
     var selectedTheme = themeSelect.value || 'all';
     var themes = [];
-    state.records.forEach(function (record) {
+    official.forEach(function (record) {
       Synthesis.normalizeSynthesis(record).themeTags.forEach(function (theme) { if (themes.indexOf(theme) < 0) themes.push(theme); });
     });
     themes.sort(function (a, b) { return a.localeCompare(b, 'zh-CN'); });
     themeSelect.innerHTML = '<option value="all">全部主题</option>' + themes.map(function (theme) { return screeningOption(theme, selectedTheme); }).join('');
     themeSelect.value = themes.indexOf(selectedTheme) >= 0 ? selectedTheme : 'all';
 
-    var records = Synthesis.filterEvidence(state.records, screeningFilters());
+    var records = Synthesis.filterEvidence(official, screeningFilters());
     var body = $('[data-screening-body]');
     body.innerHTML = records.map(function (record) {
       var synthesis = Synthesis.normalizeSynthesis(record);
@@ -406,7 +476,7 @@
     var empty = $('[data-screening-empty]');
     empty.hidden = records.length > 0;
     body.hidden = records.length === 0;
-    $('[data-screening-visible]').textContent = '显示 ' + records.length + ' / ' + state.records.length + ' 篇';
+    $('[data-screening-visible]').textContent = '显示 ' + records.length + ' / ' + official.length + ' 篇';
     renderGapSummary();
   }
 
@@ -422,11 +492,12 @@
     var current = issueFilter === 'all' ? issues : issues.filter(function (i) { return i.type === issueFilter; });
     $('[data-issue-title]').textContent = issueFilter === 'duplicate' ? '疑似重复' : issueFilter === 'missing' ? '字段缺失' : issueFilter === 'source' ? '来源待核' : '全部问题';
     var container = $('[data-issue-list]');
+    var hasRecords = formalRecords().length > 0;
     if (!current.length) {
-      container.innerHTML = '<div class="issue-empty"><strong>' + (state.records.length ? '当前范围未发现问题' : '还没有可以检查的记录') + '</strong><span>' + (state.records.length ? '仍建议在交付前抽查原始文献。' : '添加文献后会自动生成问题清单。') + '</span></div>';
+      container.innerHTML = '<div class="issue-empty"><strong>' + (hasRecords ? '当前范围未发现问题' : '还没有可以检查的记录') + '</strong><span>' + (hasRecords ? '仍建议在交付前抽查原始文献。' : '添加文献后会自动生成问题清单。') + '</span></div>';
     } else {
       container.innerHTML = current.map(function (issue) {
-        return '<div class="issue-item"><span><svg><use href="#i-alert"/></svg></span><div><strong>' + escapeHTML(issue.title) + '</strong><small>' + escapeHTML(issue.message) + '</small></div><button type="button" data-edit-record="' + issue.id + '">处理</button></div>';
+        return '<div class="issue-item"><span><svg><use href="#i-alert"/></svg></span><div><strong>' + escapeHTML(issue.title) + '</strong><small>' + escapeHTML(issue.message) + '</small></div><button type="button" data-edit-record="' + escapeHTML(issue.id) + '">处理</button></div>';
       }).join('');
     }
     Object.keys(state.finalChecks).forEach(function (key) {
@@ -447,7 +518,7 @@
     var copy = score >= 90 ? '基础质量已达标，请抽查原文并确认最终文件命名。' : '工作台会根据数量、字段完整性、核验状态和终检清单计算准备度。';
     $('[data-readiness-title]').textContent = title;
     $('[data-readiness-copy]').textContent = copy;
-    $('[data-report-status]').textContent = issues.length ? issues.length + ' 个问题将写入报告' : (state.records.length ? '基础检查通过' : '等待生成');
+    $('[data-report-status]').textContent = issues.length ? issues.length + ' 个问题将写入报告' : (formalRecords().length ? '基础检查通过' : '等待生成');
   }
 
   function renderSearchLogs() {
@@ -457,25 +528,34 @@
       return;
     }
     container.innerHTML = state.searchLogs.slice().reverse().slice(0, 8).map(function (log) {
-      return '<div class="log-row"><span>' + formatTime(log.createdAt) + '</span><strong>' + escapeHTML(log.platform || '综合检索') + ' · ' + escapeHTML(log.note || '未填写结果数') + '</strong><small>' + (log.language || '中英') + '</small></div>';
+      return '<div class="log-row"><span>' + formatTime(log.createdAt) + '</span><strong>' + escapeHTML(log.platform || '综合检索') + ' · ' + escapeHTML(log.note || '未填写结果数') + '</strong><small>' + escapeHTML(log.language || '中英') + '</small></div>';
     }).join('');
   }
 
   function fillForms() {
     var scope = $('[data-scope-form]');
-    ['title', 'topic', 'deadline', 'years', 'include', 'exclude'].forEach(function (key) { if (scope.elements[key]) scope.elements[key].value = state.project[key] || ''; });
-    scope.elements.cnTarget.value = state.project.cnTarget;
-    scope.elements.enTarget.value = state.project.enTarget;
-    $$('input[name="types"]', scope).forEach(function (input) { input.checked = state.project.types.indexOf(input.value) >= 0; });
+    if (!dirtyForms.has(scope)) {
+      ['title', 'topic', 'deadline', 'years', 'include', 'exclude'].forEach(function (key) { if (scope.elements[key]) scope.elements[key].value = state.project[key] || ''; });
+      scope.elements.cnTarget.value = state.project.cnTarget;
+      scope.elements.enTarget.value = state.project.enTarget;
+      $$('input[name="types"]', scope).forEach(function (input) { input.checked = state.project.types.indexOf(input.value) >= 0; });
+    }
     var query = $('[data-query-form]');
-    Object.keys(state.concepts).forEach(function (key) { if (query.elements[key]) query.elements[key].value = state.concepts[key]; });
+    if (!dirtyForms.has(query)) Object.keys(state.concepts).forEach(function (key) { if (query.elements[key]) query.elements[key].value = state.concepts[key]; });
     $('[data-query-output="cn"]').textContent = state.queries.cn;
     $('[data-query-output="en"]').textContent = state.queries.en;
   }
 
   function renderProjectMeta() {
-    $$('[data-project-title]').forEach(function (el) { el.textContent = state.project.title || '未命名研究任务'; });
+    $$('[data-project-title]').forEach(function (el) { el.textContent = state.project.title || '新研究项目'; });
     $('[data-deadline-label]').textContent = formatDate(state.project.deadline);
+    var switcher = $('[data-project-switcher]');
+    switcher.innerHTML = workspace.projects.map(function (project) {
+      var title = project.project.title || '新研究项目';
+      return '<option value="' + escapeHTML(project.id) + '"' + (project.id === state.id ? ' selected' : '') + '>' + escapeHTML(title) + '</option>';
+    }).join('');
+    switcher.value = state.id;
+    renderAccount();
   }
 
   function renderAll() {
@@ -519,6 +599,7 @@
   }
 
   function openBackdrop() {
+    if (!$('.modal.is-visible')) dialogReturnFocus = document.activeElement;
     var backdrop = $('[data-modal-backdrop]');
     backdrop.hidden = false;
     requestAnimationFrame(function () { backdrop.classList.add('is-visible'); });
@@ -530,12 +611,15 @@
     backdrop.classList.remove('is-visible');
     window.setTimeout(function () { backdrop.hidden = true; }, 180);
     document.body.style.overflow = '';
+    if (dialogReturnFocus && dialogReturnFocus.isConnected && typeof dialogReturnFocus.focus === 'function') dialogReturnFocus.focus();
+    dialogReturnFocus = null;
   }
 
   function openRecordModal(id) {
     var modal = $('[data-record-modal]');
     var form = $('[data-record-form]');
     form.reset();
+    clearFormDirty(form);
     form.elements.id.value = '';
     form.elements.language.value = '中文';
     form.elements.status.value = '待核验';
@@ -549,8 +633,11 @@
   }
   function closeRecordModal() {
     var modal = $('[data-record-modal]');
+    var form = $('[data-record-form]');
+    if (!confirmDiscardForm(form, '这篇文献有未保存更改。仍要关闭吗？')) return false;
     modal.classList.remove('is-visible');
     window.setTimeout(function () { modal.hidden = true; closeBackdropIfClear(); }, 180);
+    return true;
   }
 
   function openConfirm(copy, action) {
@@ -569,6 +656,197 @@
     window.setTimeout(function () { modal.hidden = true; closeBackdropIfClear(); }, 180);
   }
 
+  function openDialog(selector, focusSelector) {
+    var modal = $(selector);
+    openBackdrop();
+    modal.hidden = false;
+    requestAnimationFrame(function () { modal.classList.add('is-visible'); });
+    window.setTimeout(function () {
+      var target = focusSelector ? $(focusSelector, modal) : $('input, textarea, button', modal);
+      if (target) target.focus();
+    }, 180);
+  }
+
+  function closeDialog(modal) {
+    if (!modal) return;
+    var projectForm = $('[data-project-form]', modal);
+    if (projectForm && !confirmDiscardForm(projectForm, '新项目信息尚未提交。仍要关闭吗？')) return false;
+    modal.classList.remove('is-visible');
+    window.setTimeout(function () {
+      modal.hidden = true;
+      closeBackdropIfClear();
+    }, 180);
+    return true;
+  }
+
+  function closeUtilityDialogs() {
+    $$('.compact-modal.is-visible, .auth-modal.is-visible').forEach(closeDialog);
+  }
+
+  function openProjectDialog() {
+    var form = $('[data-project-form]');
+    form.reset();
+    clearFormDirty(form);
+    openDialog('[data-project-modal]', '[name="title"]');
+  }
+
+  function switchProject(projectId) {
+    if (!projectId || projectId === state.id) return;
+    if (!confirmDiscardAll('当前表单有未提交更改。仍要切换项目吗？')) {
+      $('[data-project-switcher]').value = state.id;
+      return;
+    }
+    saveState();
+    workspace = Workspace.selectProject(workspace, projectId);
+    state = Workspace.getActiveProject(workspace);
+    selectedIds.clear();
+    localStorage.setItem(scopedWorkspaceKey(), JSON.stringify(workspace));
+    renderAll();
+    showView(projectHasScope() ? 'overview' : 'scope');
+    toast('已切换研究项目');
+  }
+
+  function createProject(event) {
+    event.preventDefault();
+    var data = formDataObject(event.currentTarget);
+    if (!safeText(data.title).trim()) {
+      event.currentTarget.elements.title.classList.add('is-error');
+      toast('请输入项目名称。', 'error');
+      return;
+    }
+    clearFormDirty(event.currentTarget);
+    saveState();
+    var project = Workspace.createProjectState({ title: data.title, topic: data.topic });
+    workspace = Workspace.addProject(workspace, project);
+    state = Workspace.getActiveProject(workspace);
+    selectedIds.clear();
+    localStorage.setItem(scopedWorkspaceKey(), JSON.stringify(workspace));
+    closeDialog($('[data-project-modal]'));
+    renderAll();
+    showView('scope');
+    toast('研究项目已创建');
+  }
+
+  function loadAccounts() {
+    try {
+      var accounts = JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || '[]');
+      return Array.isArray(accounts) ? accounts : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function currentAccount() {
+    var id = activeAccountId();
+    return id === 'guest' ? null : loadAccounts().find(function (account) { return account.id === id; }) || null;
+  }
+
+  function renderAccount() {
+    var account = currentAccount();
+    $('[data-auth-guest]').hidden = Boolean(account);
+    $('[data-auth-profile]').hidden = !account;
+    if (!account) return;
+    $('[data-auth-name]').textContent = account.displayName;
+    $('[data-auth-avatar]').textContent = account.displayName.slice(0, 1).toUpperCase();
+  }
+
+  function setAuthMode(mode) {
+    var isLogin = mode !== 'register';
+    $('[data-login-form]').hidden = !isLogin;
+    $('[data-register-form]').hidden = isLogin;
+    $('#auth-modal-title').textContent = isLogin ? '登录文径' : '创建账户';
+    $$('[data-auth-tab]').forEach(function (button) {
+      var active = button.getAttribute('data-auth-tab') === (isLogin ? 'login' : 'register');
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', String(active));
+    });
+  }
+
+  function openAuthDialog(mode) {
+    setAuthMode(mode);
+    $('[data-login-form]').reset();
+    $('[data-register-form]').reset();
+    openDialog('[data-auth-modal]', mode === 'register' ? '#register-name' : '#login-email');
+  }
+
+  function activateAccount(account, keepCurrentWorkspace) {
+    saveState();
+    dirtyForms.clear();
+    renderSaveStatus();
+    sessionStorage.setItem(SESSION_ACCOUNT_KEY, account.id);
+    if (keepCurrentWorkspace) {
+      localStorage.setItem(scopedWorkspaceKey(), JSON.stringify(workspace));
+    } else {
+      workspace = loadWorkspace();
+      state = Workspace.getActiveProject(workspace);
+    }
+    selectedIds.clear();
+    closeDialog($('[data-auth-modal]'));
+    renderAll();
+    showView(projectHasScope() ? 'overview' : 'scope');
+  }
+
+  async function registerAccount(event) {
+    event.preventDefault();
+    if (!confirmPendingTransition('当前研究表单有未提交更改。仍要创建并切换到账户空间吗？')) return;
+    var data = formDataObject(event.currentTarget);
+    var accounts = loadAccounts();
+    var email = Account.normalizeEmail(data.email);
+    if (accounts.some(function (account) { return account.email === email; })) {
+      toast('该邮箱已注册，请直接登录。', 'error');
+      setAuthMode('login');
+      $('[data-login-form]').elements.email.value = email;
+      return;
+    }
+    var submit = $('button[type="submit"]', event.currentTarget);
+    submit.disabled = true;
+    submit.textContent = '正在创建…';
+    try {
+      var account = await Account.createAccount(data);
+      accounts.push(account);
+      localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accounts));
+      activateAccount(account, true);
+      toast('账户已创建');
+    } catch (error) {
+      toast(error.message || '账户创建失败。', 'error');
+    } finally {
+      submit.disabled = false;
+      submit.textContent = '创建账户';
+    }
+  }
+
+  async function loginAccount(event) {
+    event.preventDefault();
+    if (!confirmPendingTransition('当前研究表单有未提交更改。仍要切换到账户空间吗？')) return;
+    var data = formDataObject(event.currentTarget);
+    var account = loadAccounts().find(function (item) { return item.email === Account.normalizeEmail(data.email); });
+    var submit = $('button[type="submit"]', event.currentTarget);
+    submit.disabled = true;
+    submit.textContent = '正在登录…';
+    try {
+      if (!account || !(await Account.verifyPassword(account, data.password))) throw new Error('邮箱或密码不正确。');
+      activateAccount(account, false);
+      toast('欢迎回来，' + account.displayName);
+    } catch (error) {
+      toast(error.message || '登录失败。', 'error');
+    } finally {
+      submit.disabled = false;
+      submit.textContent = '登录';
+    }
+  }
+
+  function logoutAccount() {
+    if (!confirmDiscardAll('当前研究表单有未提交更改。仍要退出账户吗？')) return;
+    saveState();
+    sessionStorage.removeItem(SESSION_ACCOUNT_KEY);
+    workspace = loadWorkspace();
+    state = Workspace.getActiveProject(workspace);
+    selectedIds.clear();
+    renderAll();
+    showView(projectHasScope() ? 'overview' : 'scope');
+    toast('已退出账户');
+  }
+
   function formDataObject(form) {
     var data = {};
     new FormData(form).forEach(function (value, key) { data[key] = safeText(value).trim(); });
@@ -577,15 +855,37 @@
 
   function validateRecordForm(form) {
     var first = null;
+    var message = '';
     ['title', 'abstract', 'authors'].forEach(function (key) {
       var field = form.elements[key];
       var invalid = !field.value.trim();
       field.classList.toggle('is-error', invalid);
-      if (invalid && !first) first = field;
+      if (invalid && !first) {
+        first = field;
+        message = '请先补齐标题、摘要和作者信息。';
+      }
     });
+    var yearInvalid = !isValidPublicationYear(form.elements.year.value);
+    form.elements.year.classList.toggle('is-error', yearInvalid);
+    if (yearInvalid && !first) {
+      first = form.elements.year;
+      message = '年份应为 1900 到 ' + (new Date().getFullYear() + 1) + ' 之间的四位数。';
+    }
+    var doiInvalid = !isValidDOI(form.elements.doi.value);
+    form.elements.doi.classList.toggle('is-error', doiInvalid);
+    if (doiInvalid && !first) {
+      first = form.elements.doi;
+      message = '请输入有效 DOI，例如 10.1000/example。';
+    }
+    var urlInvalid = !isValidSourceUrl(form.elements.url.value);
+    form.elements.url.classList.toggle('is-error', urlInvalid);
+    if (urlInvalid && !first) {
+      first = form.elements.url;
+      message = '原文链接需使用完整的 http 或 https 地址。';
+    }
     if (first) {
       first.focus();
-      toast('请先补齐标题、摘要和作者信息。', 'error');
+      toast(message, 'error');
       return false;
     }
     return true;
@@ -602,6 +902,7 @@
     var record = normalizeRecord(Object.assign({}, existing || {}, data, { id: data.id || uid(), updatedAt: nowISO(), createdAt: existing ? existing.createdAt : nowISO() }));
     if (!record.title || !record.abstract || !record.authors) record.status = '待补全';
     if (existingIndex >= 0) state.records.splice(existingIndex, 1, record); else state.records.unshift(record);
+    clearFormDirty(form);
     saveState();
     closeRecordModal();
     renderAll();
@@ -635,6 +936,7 @@
     var form = $('[data-record-form]');
     var doi = normalizeDOI(form.elements.doi.value);
     if (!doi) { toast('请先输入 DOI。', 'error'); form.elements.doi.focus(); return; }
+    if (!isValidDOI(doi)) { toast('请输入有效 DOI，例如 10.1000/example。', 'error'); form.elements.doi.focus(); return; }
     var button = $('[data-doi-lookup]');
     button.disabled = true;
     button.textContent = '正在查询…';
@@ -653,7 +955,7 @@
         form.elements.doi.value = doi;
         toast('DOI 元数据已补全，请核对摘要与作者单位');
       })
-      .catch(function (error) { toast((error.message || 'Crossref 公共接口请求失败。') + ' 本地录入或导入仍可继续。', 'error'); })
+      .catch(function (error) { toast(error.message || 'Crossref 请求失败；可继续手动录入或导入。', 'error'); })
       .finally(function () { button.disabled = false; button.textContent = '自动补全'; });
   }
 
@@ -669,7 +971,8 @@
     var blocked = 0;
     state.records.forEach(function (record) {
       if (!selectedIds.has(record.id)) return;
-      if (!record.title || !record.abstract || !record.authors || (!record.doi && !record.url)) { blocked += 1; return; }
+      if (!record.title || !record.abstract || !record.authors || (!record.doi && !record.url) ||
+        !isValidPublicationYear(record.year) || !isValidDOI(record.doi) || !isValidSourceUrl(record.url)) { blocked += 1; return; }
       record.status = '已核验';
       record.updatedAt = nowISO();
     });
@@ -714,20 +1017,22 @@
   }
   function exportCSV() {
     var headers = ['序号', '语言', '文献标题', '摘要', '作者', '作者单位', '发表年份', '文献类型', '期刊/会议/来源', '关键词', 'DOI', '原文链接', 'PDF文件名', '下载状态', '检索来源', '备注', '筛选决定', '排除理由', '核心发现', '证据等级', '主题标签'];
-    var rows = state.records.map(function (record, index) {
+    var rows = formalRecords().map(function (record, index) {
       return [index + 1, record.language, record.title, record.abstract, record.authors, record.affiliation, record.year, record.type, record.source, record.keywords, record.doi, record.url, record.fileName, record.status, record.database, record.notes, record.screeningDecision, record.exclusionReason, record.coreFinding, record.evidenceGrade, record.themeTags.join('；')];
     });
     var csv = '\ufeff' + [headers].concat(rows).map(function (row) { return row.map(csvEscape).join(','); }).join('\r\n');
-    downloadFile('文径-文献目录-' + new Date().toISOString().slice(0, 10) + '.csv', csv, 'text/csv;charset=utf-8');
+    downloadFile('文径-文献目录-' + localDateStamp() + '.csv', csv, 'text/csv;charset=utf-8');
     toast('文献目录 CSV 已导出');
   }
   function exportJSON() {
-    downloadFile('文径-完整备份-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(state, null, 2), 'application/json;charset=utf-8');
+    var snapshot = JSON.parse(JSON.stringify(state));
+    snapshot.records = formalRecords();
+    downloadFile('文径-完整备份-' + localDateStamp() + '.json', JSON.stringify(snapshot, null, 2), 'application/json;charset=utf-8');
     toast('完整项目备份已导出');
   }
   function exportSynthesis() {
-    var content = Synthesis.buildMarkdownSynthesis(state.project, state.records);
-    downloadFile('文径-证据综合-' + new Date().toISOString().slice(0, 10) + '.md', content, 'text/markdown;charset=utf-8');
+    var content = Synthesis.buildMarkdownSynthesis(state.project, formalRecords());
+    downloadFile('文径-证据综合-' + localDateStamp() + '.md', content, 'text/markdown;charset=utf-8');
     toast('Markdown 证据综合已导出');
   }
   function bibEscape(value) { return safeText(value).replace(/[{}]/g, '').replace(/\s+/g, ' ').trim(); }
@@ -736,16 +1041,17 @@
     return (author + (record.year || 'nd') + (index + 1)).replace(/[^a-zA-Z0-9_-]/g, '') || ('record' + (index + 1));
   }
   function exportBibTeX() {
-    var content = state.records.map(function (record, index) {
-      var type = record.type === '会议论文' ? 'inproceedings' : record.type === '研究报告' ? 'techreport' : record.type === '学位论文' ? 'thesis' : 'article';
+    var content = formalRecords().map(function (record, index) {
+      var type = record.type === '会议论文' ? 'inproceedings' : record.type === '研究报告' ? 'techreport' : record.type === '学位论文' ? 'misc' : 'article';
+      var venueField = type === 'inproceedings' ? 'booktitle' : type === 'article' ? 'journal' : type === 'techreport' ? 'institution' : 'howpublished';
       var fields = [
         ['title', record.title], ['author', safeText(record.authors).split(/[;；]/).join(' and ')], ['year', record.year],
-        [type === 'inproceedings' ? 'booktitle' : type === 'article' ? 'journal' : 'institution', record.source],
+        [venueField, record.source], ['type', type === 'misc' ? '学位论文' : ''],
         ['abstract', record.abstract], ['keywords', record.keywords], ['doi', normalizeDOI(record.doi)], ['url', record.url], ['note', record.notes]
       ].filter(function (pair) { return pair[1]; });
       return '@' + type + '{' + bibKey(record, index) + ',\n' + fields.map(function (pair) { return '  ' + pair[0] + ' = {' + bibEscape(pair[1]) + '}'; }).join(',\n') + '\n}';
     }).join('\n\n');
-    downloadFile('文径-引用库-' + new Date().toISOString().slice(0, 10) + '.bib', content, 'application/x-bibtex;charset=utf-8');
+    downloadFile('文径-引用库-' + localDateStamp() + '.bib', content, 'application/x-bibtex;charset=utf-8');
     toast('BibTeX 引用库已导出');
   }
   function qualityReport() {
@@ -780,7 +1086,7 @@
     return lines.join('\n');
   }
   function exportReport() {
-    downloadFile('文径-质量检查报告-' + new Date().toISOString().slice(0, 10) + '.txt', qualityReport(), 'text/plain;charset=utf-8');
+    downloadFile('文径-质量检查报告-' + localDateStamp() + '.txt', qualityReport(), 'text/plain;charset=utf-8');
     toast('质量检查报告已导出');
   }
 
@@ -878,22 +1184,16 @@
         if (/\.json$/i.test(file.name)) {
           var parsed = JSON.parse(reader.result);
           if (Array.isArray(parsed)) {
-            var jsonRecords = parsed.map(normalizeRecord);
+            var jsonRecords = normalizeRecordList(parsed, state.records.map(function (record) { return record.id; }));
             assignMissingFileNames(jsonRecords);
             state.records = state.records.concat(jsonRecords);
           }
           else if (parsed.records && Array.isArray(parsed.records)) {
             var incoming = parsed;
-            state = {
-              version: VERSION,
-              project: Object.assign(defaultState().project, incoming.project || {}),
-              concepts: Object.assign(defaultState().concepts, incoming.concepts || {}),
-              queries: Object.assign(defaultState().queries, incoming.queries || {}),
-              searchLogs: Array.isArray(incoming.searchLogs) ? incoming.searchLogs : [],
-              records: incoming.records.map(normalizeRecord),
-              finalChecks: Object.assign(defaultState().finalChecks, incoming.finalChecks || {}),
-              updatedAt: nowISO()
-            };
+            state = Workspace.normalizeProject(incoming);
+            state.records = normalizeRecordList(incoming.records);
+            state.searchLogs = Array.isArray(incoming.searchLogs) ? incoming.searchLogs.map(normalizeSearchLog) : [];
+            state.updatedAt = nowISO();
           } else throw new Error('JSON 不包含文献记录。');
           toast('项目备份已导入');
         } else if (/\.(bib|bibtex)$/i.test(file.name)) {
@@ -921,11 +1221,57 @@
     return 'PDF 文件名：语言-序号-年份-第一作者-题名.pdf\n目录字段：序号｜语言｜标题｜摘要｜作者｜作者单位｜年份｜来源｜DOI｜原文链接｜PDF文件名｜状态｜检索来源｜备注｜筛选决定｜排除理由｜核心发现｜证据等级｜主题标签';
   }
 
+  function updateScreeningField(field) {
+    var row = field && field.closest('[data-record-id]');
+    if (!field || !row) return false;
+    var record = state.records.filter(function (item) { return item.id === row.getAttribute('data-record-id'); })[0];
+    if (!record) return false;
+    var key = field.getAttribute('data-screen-field');
+    if (['screeningDecision', 'coreFinding', 'evidenceGrade', 'themeTags', 'exclusionReason'].indexOf(key) < 0) return false;
+    record[key] = key === 'themeTags' ? Synthesis.splitThemeTags(field.value) : field.value;
+    Object.assign(record, Synthesis.normalizeSynthesis(record));
+    record.updatedAt = nowISO();
+    return true;
+  }
+
+  function flushScreeningSave() {
+    if (!screeningSaveTimer) return;
+    window.clearTimeout(screeningSaveTimer);
+    screeningSaveTimer = null;
+    renderWorkflow();
+    renderAdvice();
+    renderGapSummary();
+  }
+
+  function queueScreeningSave(field, immediate) {
+    if (!updateScreeningField(field)) return;
+    if (screeningSaveTimer) window.clearTimeout(screeningSaveTimer);
+    screeningSaveTimer = null;
+    var status = $('[data-save-status]');
+    if (status) status.textContent = '正在保存…';
+    if (immediate) {
+      saveState('筛选信息已保存');
+      renderScreening();
+      renderWorkflow();
+      renderAdvice();
+      return;
+    }
+    saveState('筛选信息已保存');
+    screeningSaveTimer = window.setTimeout(flushScreeningSave, 240);
+  }
+
   function bindEvents() {
     document.addEventListener('click', function (event) {
       var nav = event.target.closest('[data-nav]');
       if (nav) { event.preventDefault(); showView(nav.getAttribute('data-nav')); return; }
       if (event.target.closest('[data-menu]')) { $('#sidebar').classList.toggle('is-open'); return; }
+      if (event.target.closest('[data-create-project]')) { openProjectDialog(); return; }
+      if (event.target.closest('[data-auth-login]')) { openAuthDialog('login'); return; }
+      if (event.target.closest('[data-auth-register]')) { openAuthDialog('register'); return; }
+      if (event.target.closest('[data-auth-logout]')) { logoutAccount(); return; }
+      var authTab = event.target.closest('[data-auth-tab]');
+      if (authTab) { setAuthMode(authTab.getAttribute('data-auth-tab')); return; }
+      if (event.target.closest('[data-close-dialog]')) { closeUtilityDialogs(); return; }
       if (event.target.closest('[data-add-record]')) { openRecordModal(); return; }
       if (event.target.closest('[data-close-modal]')) { closeRecordModal(); return; }
       var edit = event.target.closest('[data-edit-record]');
@@ -952,10 +1298,6 @@
         if (note === null) return;
         state.searchLogs.push({ id: uid(), platform: platform.trim() || '综合检索', note: note.trim() || '未填写结果数', language: /Scholar|Web|Scopus|OpenAlex/i.test(platform) ? '英文' : '中文', createdAt: nowISO() });
         saveState(); renderAll(); toast('本次检索已记录'); return;
-      }
-      if (event.target.closest('[data-load-demo]')) {
-        if (state.records.some(function (record) { return record.demo; })) { toast('演示数据已经载入'); return; }
-        state.records = demoRecords().concat(state.records); saveState(); renderAll(); toast('已载入 6 条演示记录'); return;
       }
       var clear = event.target.closest('[data-clear-filters]');
       if (clear) { $('#library-search').value = ''; $('[data-filter-language]').value = 'all'; $('[data-filter-status]').value = 'all'; renderLibrary(); return; }
@@ -990,6 +1332,10 @@
     });
 
     $('[data-record-form]').addEventListener('submit', saveRecord);
+    $('[data-project-form]').addEventListener('submit', createProject);
+    $('[data-login-form]').addEventListener('submit', loginAccount);
+    $('[data-register-form]').addEventListener('submit', registerAccount);
+    $('[data-project-switcher]').addEventListener('change', function (event) { switchProject(event.target.value); });
     $('[data-scope-form]').addEventListener('submit', function (event) {
       event.preventDefault();
       var form = event.currentTarget;
@@ -1004,12 +1350,25 @@
         enTarget: Math.max(0, Number(data.enTarget || 0)),
         types: $$('input[name="types"]:checked', form).map(function (input) { return input.value; })
       });
+      clearFormDirty(form);
       saveState(); renderAll(); toast('研究边界已保存');
     });
     $('[data-query-form]').addEventListener('submit', function (event) {
       event.preventDefault();
-      state.concepts = Object.assign(state.concepts, formDataObject(event.currentTarget));
-      generateQueries(); saveState(); renderAll(); toast('中英文检索式已生成');
+      var concepts = formDataObject(event.currentTarget);
+      var hasChinese = Boolean(concepts.a || concepts.b || concepts.c);
+      var hasEnglish = Boolean(concepts.aEn || concepts.bEn || concepts.cEn);
+      if (!hasChinese && !hasEnglish) {
+        event.currentTarget.elements.a.focus();
+        toast('请先填写至少一组中文或英文概念。', 'error');
+        return;
+      }
+      state.concepts = Object.assign(state.concepts, concepts);
+      generateQueries();
+      clearFormDirty(event.currentTarget);
+      saveState();
+      renderAll();
+      toast(hasChinese && hasEnglish ? '中英文检索式已生成' : (hasChinese ? '中文检索式已生成；英文概念组为空' : '英文检索式已生成；中文概念组为空'));
     });
     $('#library-search').addEventListener('input', renderLibrary);
     $('[data-filter-language]').addEventListener('change', renderLibrary);
@@ -1028,38 +1387,61 @@
       if (input.checked) selectedIds.add(input.getAttribute('data-select-record')); else selectedIds.delete(input.getAttribute('data-select-record'));
       renderLibrary();
     });
+    $('[data-screening-body]').addEventListener('input', function (event) {
+      var field = event.target.closest('[data-screen-field]');
+      if (field) queueScreeningSave(field, false);
+    });
     $('[data-screening-body]').addEventListener('change', function (event) {
       var field = event.target.closest('[data-screen-field]');
-      var row = field && field.closest('[data-record-id]');
-      if (!field || !row) return;
-      var record = state.records.filter(function (item) { return item.id === row.getAttribute('data-record-id'); })[0];
-      if (!record) return;
-      var key = field.getAttribute('data-screen-field');
-      record[key] = key === 'themeTags' ? Synthesis.splitThemeTags(field.value) : field.value;
-      Object.assign(record, Synthesis.normalizeSynthesis(record));
-      record.updatedAt = nowISO();
-      saveState('筛选信息已保存');
-      renderScreening();
-      renderWorkflow();
-      renderAdvice();
+      if (field) queueScreeningSave(field, true);
     });
     $$('[data-final-check]').forEach(function (input) {
       input.addEventListener('change', function () { state.finalChecks[input.getAttribute('data-final-check')] = input.checked; saveState(); renderQuality(); });
     });
     $('[data-import-input]').addEventListener('change', function (event) { handleImport(event.target.files[0]); event.target.value = ''; });
-    $('[data-modal-backdrop]').addEventListener('click', function () { if (!$('[data-record-modal]').hidden) closeRecordModal(); else if (!$('[data-confirm-modal]').hidden) closeConfirm(); });
-    document.addEventListener('keydown', function (event) { if (event.key === 'Escape') { if (!$('[data-record-modal]').hidden) closeRecordModal(); else if (!$('[data-confirm-modal]').hidden) closeConfirm(); } });
-    $$('.workflow-steps li').forEach(function (item) { item.addEventListener('click', function () { showView(item.getAttribute('data-step')); }); });
+    $('[data-modal-backdrop]').addEventListener('click', function () {
+      if (!$('[data-record-modal]').hidden) closeRecordModal();
+      else if (!$('[data-confirm-modal]').hidden) closeConfirm();
+      else closeUtilityDialogs();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'Escape') return;
+      if (!$('[data-record-modal]').hidden) closeRecordModal();
+      else if (!$('[data-confirm-modal]').hidden) closeConfirm();
+      else if ($('.compact-modal.is-visible, .auth-modal.is-visible')) closeUtilityDialogs();
+      else if ($('#sidebar').classList.contains('is-open')) {
+        $('#sidebar').classList.remove('is-open');
+        $('[data-menu]').focus();
+      }
+    });
+    document.addEventListener('input', function (event) {
+      var form = event.target.closest('[data-scope-form], [data-query-form], [data-record-form], [data-project-form]');
+      if (form) markFormDirty(form);
+    });
+    $$('.workflow-steps li').forEach(function (item) {
+      item.addEventListener('click', function () { showView(item.getAttribute('data-step')); });
+      item.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        showView(item.getAttribute('data-step'));
+      });
+    });
+    window.addEventListener('pagehide', flushScreeningSave);
+    window.addEventListener('beforeunload', function (event) {
+      if (!dirtyForms.size) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
   }
 
   function registerServiceWorker() {
-    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('./sw.js').catch(function () {});
+    var secureLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || secureLocalhost)) navigator.serviceWorker.register('./sw.js').catch(function () {});
   }
 
   fillForms();
-  $('[data-cost-mode]').setAttribute('data-cost-mode', costPolicy.mode);
   bindEvents();
   renderAll();
-  showView(location.hash.replace('#', '') || 'overview');
+  showView(location.hash.replace('#', '') || (projectHasScope() ? 'overview' : 'scope'));
   registerServiceWorker();
 })();

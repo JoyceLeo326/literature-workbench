@@ -134,7 +134,7 @@ test('integrates the workspace between library and quality while preserving exis
   assert.match(script, /renderScreening/);
   assert.match(script, /data-screen-field/);
   assert.match(script, /buildMarkdownSynthesis/);
-  assert.match(script, /JSON\.stringify\(state, null, 2\)/);
+  assert.match(script, /JSON\.stringify\(snapshot, null, 2\)/);
 
   ['lookupDOI', 'importCSV', 'importBibTeX', 'importRIS', 'exportCSV', 'exportJSON', 'exportBibTeX', 'exportReport'].forEach((capability) => {
     assert.match(script, new RegExp('function\\s+' + capability + '\\b'));
