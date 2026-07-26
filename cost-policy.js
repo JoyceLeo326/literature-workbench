@@ -58,32 +58,32 @@
     var policy = createCostPolicy();
     var providerPolicy = policy.providers[provider];
     if (!providerPolicy || !providerPolicy.enabled) {
-      return Promise.reject(policyError('PROVIDER_NOT_ALLOWED', (providerPolicy && providerPolicy.reason) || '该外部服务不在零成本允许列表中。', provider));
+      return Promise.reject(policyError('PROVIDER_NOT_ALLOWED', '该外部服务尚未接入当前版本。', provider));
     }
 
     var parsed;
     try { parsed = new URL(endpoint); }
     catch (error) { return Promise.reject(policyError('ENDPOINT_NOT_ALLOWED', '公共 API 地址无效；请求已停止。', provider)); }
     if (parsed.origin !== providerPolicy.allowedOrigin || parsed.protocol !== 'https:') {
-      return Promise.reject(policyError('ENDPOINT_NOT_ALLOWED', '只允许访问已登记的免费公共 API；不会尝试付费端点。', provider));
+      return Promise.reject(policyError('ENDPOINT_NOT_ALLOWED', '该数据源地址未通过安全校验。', provider));
     }
     if (typeof fetcher !== 'function') {
-      return Promise.reject(policyError('PUBLIC_API_UNAVAILABLE', '公共 API 请求不可用；请继续本地录入或导入。', provider));
+      return Promise.reject(policyError('PUBLIC_API_UNAVAILABLE', 'Crossref 请求不可用；可继续手动录入或导入。', provider));
     }
 
     return Promise.resolve().then(function () {
       return fetcher(parsed.href, { method: 'GET', headers: { Accept: 'application/json' } });
     }).catch(function () {
-      throw policyError('PUBLIC_API_UNAVAILABLE', '公共 API 暂时不可用；已停止联网请求，请继续本地录入或导入。', provider);
+      throw policyError('PUBLIC_API_UNAVAILABLE', 'Crossref 暂时不可用；可继续手动录入或导入。', provider);
     }).then(function (response) {
       if (!response || !response.ok) {
         var status = response ? Number(response.status || 0) : 0;
         var code = status === 429 ? 'PUBLIC_API_RATE_LIMITED' : 'PUBLIC_API_REJECTED';
-        var copy = status === 429 ? '免费公共 API 已达到限流；本次请求已停止，请稍后重试或继续本地录入或导入。' : '免费公共 API 拒绝或未完成请求；不会启用付费回退，请继续本地录入或导入。';
+        var copy = status === 429 ? 'Crossref 请求过于频繁；请稍后重试，或继续手动录入或导入。' : 'Crossref 未完成请求；请稍后重试，或继续手动录入或导入。';
         throw policyError(code, copy, provider, status);
       }
       return Promise.resolve(response.json()).catch(function () {
-        throw policyError('PUBLIC_API_INVALID_RESPONSE', '公共 API 返回内容无法读取；请继续本地录入或导入。', provider, response.status);
+        throw policyError('PUBLIC_API_INVALID_RESPONSE', 'Crossref 返回内容无法读取；可继续手动录入或导入。', provider, response.status);
       });
     });
   }

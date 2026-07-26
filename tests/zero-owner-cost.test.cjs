@@ -64,7 +64,7 @@ test('fails closed on public API limits and outages without attempting a paid fa
     (error) => error.code === 'PUBLIC_API_RATE_LIMITED' &&
       error.recoverableLocally === true &&
       error.paidFallbackAttempted === false &&
-      /本地录入或导入/.test(error.message)
+      /手动录入或导入/.test(error.message)
   );
   assert.equal(calls, 1);
 
@@ -93,20 +93,18 @@ test('blocks non-integrated OpenAlex and unknown providers before network access
   assert.equal(calls, 0);
 });
 
-test('integrates the boundary in UI and documentation without claiming future capabilities', () => {
+test('enforces the boundary in code and documentation without marketing internal constraints', () => {
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const script = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
   const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
   const docPath = path.join(root, 'docs', 'zero-owner-cost.md');
 
-  assert.match(index, /data-cost-mode="zero_owner_cost"/);
-  assert.match(index, /本地 0 成本/);
-  assert.match(index, /无付费服务 · 无自动账单/);
+  assert.doesNotMatch(index, /data-cost-mode|本地 0 成本|无自动账单/);
   assert.match(index, /<script src="cost-policy\.js"><\/script>[\s\S]*<script src="script\.js"><\/script>/);
   assert.match(script, /CostPolicy\.requestPublicJson\('crossref'/);
   assert.doesNotMatch(script, /fetch\('https:\/\/api\.crossref\.org/);
-  assert.match(script, /本地录入或导入/);
+  assert.match(script, /手动录入或导入/);
   assert.match(sw, /cost-policy\.js/);
 
   ['importCSV', 'importBibTeX', 'importRIS', 'exportCSV', 'exportJSON', 'exportSynthesis', 'exportBibTeX', 'exportReport', 'renderScreening'].forEach((capability) => {

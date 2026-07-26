@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#12372f">
-  <meta name="description" content="文径是一套覆盖研究边界、检索、题录、筛选综合、质量检查与本地导出的零固定成本文献工作台。">
+  <meta name="description" content="文径是一套覆盖研究边界、检索留痕、题录筛选、证据综合、质量检查与研究交付的文献工作台。">
   <title>文径｜文献研究工作台</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
@@ -32,6 +32,7 @@
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a4 4 0 0 0 6 .5l3-3a4 4 0 0 0-6-6l-2 2M14 11a4 4 0 0 0-6-.5l-3 3a4 4 0 0 0 6 6l2-2"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M18.5 9A7 7 0 0 0 6 7M5.5 15A7 7 0 0 0 18 17"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></symbol>
   </svg>
 
   <div class="app-shell">
@@ -52,9 +53,8 @@
       </nav>
 
       <div class="sidebar-foot">
-        <div class="storage-status"><span></span><div><strong>本地保存</strong><small data-save-status>所有更改已保存</small></div></div>
-        <div class="cost-boundary" data-cost-mode="zero_owner_cost"><span>¥0</span><div><strong>本地 0 成本</strong><small>无付费服务 · 无自动账单</small></div></div>
-        <p>数据仅保存在当前浏览器</p>
+        <div class="storage-status"><span></span><div><strong>保存状态</strong><small data-save-status>所有更改已保存</small></div></div>
+        <p>综合字段实时保存，其他表单提交后保存</p>
       </div>
     </aside>
 
@@ -62,12 +62,24 @@
       <header class="topbar">
         <button class="icon-button menu-button" type="button" data-menu aria-label="打开导航"><svg><use href="#i-menu"/></svg></button>
         <div class="project-heading">
-          <p data-view-kicker>任务总览</p>
-          <h1 data-project-title>科技创新与产业升级文献整理</h1>
+          <div class="project-context">
+            <p data-view-kicker>研究边界</p>
+            <label class="project-switch"><span class="sr-only">切换研究项目</span><select data-project-switcher aria-label="切换研究项目"></select></label>
+          </div>
+          <h1 data-project-title>新研究项目</h1>
         </div>
         <div class="top-actions">
+          <button class="icon-button create-project-button" type="button" data-create-project aria-label="新建研究项目" title="新建研究项目"><svg><use href="#i-plus"/></svg></button>
           <button class="button button-secondary" type="button" data-import-trigger><svg><use href="#i-upload"/></svg><span>导入目录</span></button>
           <button class="button button-primary" type="button" data-add-record><svg><use href="#i-plus"/></svg><span>添加文献</span></button>
+          <div class="account-entry" data-auth-guest>
+            <button class="account-link" type="button" data-auth-login aria-label="登录或注册"><span>登录</span><span class="register-suffix"> / 注册</span></button>
+            <button class="button button-secondary account-register" type="button" data-auth-register>注册</button>
+          </div>
+          <div class="profile-chip" data-auth-profile hidden>
+            <span data-auth-avatar>研</span><strong data-auth-name>研究者</strong>
+            <button type="button" data-auth-logout>退出</button>
+          </div>
         </div>
       </header>
 
@@ -93,12 +105,12 @@
             <article class="panel workflow-panel reveal">
               <div class="panel-heading"><div><p class="eyebrow">当前流程</p><h3>从检索到交付</h3></div><span class="status-pill" data-stage-pill>准备检索</span></div>
               <ol class="workflow-steps">
-                <li data-step="scope"><span>01</span><div><strong>明确边界</strong><p>主题、年份、文献类型与排除条件</p></div><b></b></li>
-                <li data-step="queries"><span>02</span><div><strong>建立检索式</strong><p>中英文关键词、同义词与组合查询</p></div><b></b></li>
-                <li data-step="library"><span>03</span><div><strong>录入题录</strong><p>标题、摘要、作者、来源与原文链接</p></div><b></b></li>
-                <li data-step="screening"><span>04</span><div><strong>筛选与综合</strong><p>人工决策、证据矩阵与字段分布提示</p></div><b></b></li>
-                <li data-step="quality"><span>05</span><div><strong>检查质量</strong><p>重复项、缺失字段与来源一致性</p></div><b></b></li>
-                <li data-step="delivery"><span>06</span><div><strong>整理交付</strong><p>目录、完整备份与综合报告</p></div><b></b></li>
+                <li data-step="scope" role="button" tabindex="0"><span>01</span><div><strong>明确边界</strong><p>主题、年份、文献类型与排除条件</p></div><b></b></li>
+                <li data-step="queries" role="button" tabindex="0"><span>02</span><div><strong>建立检索式</strong><p>中英文关键词、同义词与组合查询</p></div><b></b></li>
+                <li data-step="library" role="button" tabindex="0"><span>03</span><div><strong>录入题录</strong><p>标题、摘要、作者、来源与原文链接</p></div><b></b></li>
+                <li data-step="screening" role="button" tabindex="0"><span>04</span><div><strong>筛选与综合</strong><p>人工决策、证据矩阵与字段分布提示</p></div><b></b></li>
+                <li data-step="quality" role="button" tabindex="0"><span>05</span><div><strong>检查质量</strong><p>重复项、缺失字段与来源一致性</p></div><b></b></li>
+                <li data-step="delivery" role="button" tabindex="0"><span>06</span><div><strong>整理交付</strong><p>目录、完整备份与综合报告</p></div><b></b></li>
               </ol>
             </article>
 
@@ -172,7 +184,7 @@
         </section>
 
         <section class="view" data-view="library" aria-labelledby="library-title">
-          <div class="page-intro library-intro reveal"><div><p class="eyebrow">03 · ORGANIZE</p><h2 id="library-title">文献目录</h2><p>所有字段从原文录入。摘要、作者和来源信息缺失时会进入待核验队列。</p></div><div class="page-actions"><button class="button button-secondary" type="button" data-load-demo>载入演示数据</button><button class="button button-primary" type="button" data-add-record><svg><use href="#i-plus"/></svg>添加文献</button></div></div>
+          <div class="page-intro library-intro reveal"><div><p class="eyebrow">03 · ORGANIZE</p><h2 id="library-title">文献目录</h2><p>所有字段从原文录入。摘要、作者和来源信息缺失时会进入待核验队列。</p></div><div class="page-actions"><button class="button button-secondary" type="button" data-import-trigger><svg><use href="#i-upload"/></svg>导入目录</button><button class="button button-primary" type="button" data-add-record><svg><use href="#i-plus"/></svg>添加文献</button></div></div>
           <div class="panel library-panel reveal">
             <div class="library-toolbar">
               <label class="search-box" for="library-search"><svg><use href="#i-search"/></svg><input id="library-search" type="search" placeholder="搜索标题、作者、关键词"></label>
@@ -184,7 +196,7 @@
                 <thead><tr><th class="checkbox-col"><input type="checkbox" data-select-all aria-label="选择全部文献"></th><th>语言</th><th class="title-col">标题与来源</th><th>作者</th><th>年份</th><th>状态</th><th class="action-col">操作</th></tr></thead>
                 <tbody data-library-body></tbody>
               </table>
-              <div class="empty-state" data-library-empty><svg><use href="#i-library"/></svg><h3>文献目录还是空的</h3><p>添加第一篇文献，或载入演示数据查看完整工作流。</p><button class="button button-primary" type="button" data-add-record>添加第一篇</button></div>
+              <div class="empty-state" data-library-empty><svg><use href="#i-library"/></svg><h3>文献目录还是空的</h3><p>添加第一篇文献，或导入已有的题录文件。</p><button class="button button-primary" type="button" data-add-record>添加第一篇</button></div>
             </div>
             <div class="library-footer"><span data-library-summary>0 篇记录</span><span>数据自动保存在当前浏览器</span></div>
           </div>
@@ -246,7 +258,7 @@
         </section>
 
         <section class="view" data-view="delivery" aria-labelledby="delivery-title">
-          <div class="page-intro reveal"><p class="eyebrow">06 · DELIVER</p><h2 id="delivery-title">交付中心</h2><p>导出目录、备份、综合与质量报告。所有文件都在浏览器本地生成。</p></div>
+          <div class="page-intro reveal"><p class="eyebrow">06 · DELIVER</p><h2 id="delivery-title">交付中心</h2><p>导出目录、备份、综合与质量报告。</p></div>
           <div class="delivery-grid">
             <article class="export-card reveal"><span><svg><use href="#i-file"/></svg></span><div><h3>文献目录 CSV</h3><p>适合在 Excel 中继续筛选、补充和提交。</p><small data-csv-status>包含 0 条记录</small></div><button class="button button-dark" type="button" data-export="csv"><svg><use href="#i-download"/></svg>导出 CSV</button></article>
             <article class="export-card reveal"><span><svg><use href="#i-package"/></svg></span><div><h3>完整项目备份</h3><p>保存研究边界、检索式、文献与检查状态。</p><small>可再次导入当前工作台</small></div><button class="button button-dark" type="button" data-export="json"><svg><use href="#i-download"/></svg>导出 JSON</button></article>
@@ -295,6 +307,35 @@
     </form>
   </section>
 
+  <section class="modal compact-modal" data-project-modal role="dialog" aria-modal="true" aria-labelledby="project-modal-title" hidden>
+    <header><div><p class="eyebrow">NEW PROJECT</p><h2 id="project-modal-title">新建研究项目</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭"><svg><use href="#i-close"/></svg></button></header>
+    <form data-project-form novalidate>
+      <div class="field"><label for="new-project-title">项目名称 <span>*</span></label><input id="new-project-title" name="title" required maxlength="100" autocomplete="off" placeholder="例如：生成式 AI 对高等教育评价的影响"></div>
+      <div class="field"><label for="new-project-topic">研究问题</label><textarea id="new-project-topic" name="topic" rows="4" maxlength="600" placeholder="描述研究对象、关系与使用场景"></textarea></div>
+      <footer><button class="button button-secondary" type="button" data-close-dialog>取消</button><button class="button button-primary" type="submit">创建并开始</button></footer>
+    </form>
+  </section>
+
+  <section class="modal auth-modal" data-auth-modal role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" hidden>
+    <header><div><p class="eyebrow">ACCOUNT</p><h2 id="auth-modal-title">登录文径</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭"><svg><use href="#i-close"/></svg></button></header>
+    <div class="auth-tabs" role="tablist" aria-label="账户操作">
+      <button class="is-active" type="button" role="tab" aria-selected="true" data-auth-tab="login">登录</button>
+      <button type="button" role="tab" aria-selected="false" data-auth-tab="register">注册</button>
+    </div>
+    <form data-login-form>
+      <div class="field"><label for="login-email">邮箱</label><input id="login-email" name="email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="login-password">密码</label><input id="login-password" name="password" type="password" autocomplete="current-password" required></div>
+      <button class="button button-primary full" type="submit">登录</button>
+    </form>
+    <form data-register-form hidden>
+      <div class="field"><label for="register-name">姓名或昵称</label><input id="register-name" name="displayName" autocomplete="name" required maxlength="40"></div>
+      <div class="field"><label for="register-email">邮箱</label><input id="register-email" name="email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="register-password">密码</label><input id="register-password" name="password" type="password" autocomplete="new-password" minlength="10" required><small>至少 10 个字符</small></div>
+      <button class="button button-primary full" type="submit">创建账户</button>
+    </form>
+    <p class="auth-note">账户保存在当前设备；你的研究项目仍可随时导出备份。</p>
+  </section>
+
   <section class="modal confirm-modal" data-confirm-modal role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
     <span class="confirm-icon"><svg><use href="#i-alert"/></svg></span><h2 id="confirm-title">删除这些记录？</h2><p data-confirm-copy>删除后无法撤销。建议先导出 JSON 备份。</p><footer><button class="button button-secondary" type="button" data-cancel-confirm>取消</button><button class="button button-danger" type="button" data-confirm-delete>删除记录</button></footer>
   </section>
@@ -303,6 +344,8 @@
   <div class="toast-region" aria-live="polite" aria-atomic="true" data-toast-region></div>
   <script src="cost-policy.js"></script>
   <script src="literature-core.js"></script>
+  <script src="workspace-core.js"></script>
+  <script src="account-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
