@@ -25,6 +25,9 @@ test('ships an immersive profile surface and a mainland-first Pages artifact', (
   assert.match(script, /profileLines/);
   assert.match(workflow, /actions\/deploy-pages/);
   assert.match(workflow, /pages-dist/);
+  assert.match(html, /rel="canonical" href="https:\/\/joyceleo326\.github\.io\/literature-workbench\/"/);
+  assert.match(html, /property="og:title"/);
+  assert.match(html, /name="twitter:card"/);
   assert.doesNotMatch(`${html}\n${script}`, /零成本|0 成本|无需登录|评委|MVP|教学演示/);
   assert.doesNotMatch(`${html}\n${script}`, /fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/);
 });
