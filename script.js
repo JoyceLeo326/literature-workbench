@@ -11,6 +11,7 @@
   var Synthesis = window.LitpathSynthesis;
   var Workspace = window.LitpathWorkspace;
   var Account = window.LitpathAccount;
+  var Experience = window.LitpathExperience;
   var selectedIds = new Set();
   var pendingDelete = null;
   var issueFilter = 'all';
@@ -79,6 +80,10 @@
 
   var workspace = loadWorkspace();
   var state = Workspace.getActiveProject(workspace);
+
+  function currentProfile() {
+    return Experience.normalizeProfile(state.project);
+  }
 
   function renderSaveStatus(message) {
     var status = $('[data-save-status]');
@@ -345,11 +350,20 @@
     var advice = getAdvice();
     $('.advice-index').textContent = advice.index;
     $('[data-advice-title]').textContent = advice.title;
-    $('[data-advice-copy]').textContent = advice.copy;
+    $('[data-advice-copy]').textContent = Experience.personalizeAdvice(advice.copy, currentProfile());
     $('[data-advice-action]').setAttribute('data-target-view', advice.view);
     var issues = analyzeQuality();
     $('[data-mini-qa]').textContent = formalRecords().length ? (issues.length ? issues.length + ' 个问题待处理' : '基础检查通过') : '尚无记录';
     $('[data-mini-qa-copy]').textContent = formalRecords().length ? (issues.length ? '进入质量检查定位问题。' : '继续完成原文核验和交付清单。') : '添加文献后会自动检查。';
+  }
+
+  function renderJourney() {
+    var container = $('[data-journey-grid]');
+    if (!container) return;
+    var journey = Experience.buildJourney(currentProfile(), state.project, counts());
+    container.innerHTML = journey.map(function (item, index) {
+      return '<article class="journey-beat"><span>0' + (index + 1) + ' · ' + escapeHTML(item.beat) + '</span><strong>' + escapeHTML(item.title) + '</strong><p>' + escapeHTML(item.copy) + '</p></article>';
+    }).join('');
   }
 
   function renderRecent() {
@@ -535,7 +549,7 @@
   function fillForms() {
     var scope = $('[data-scope-form]');
     if (!dirtyForms.has(scope)) {
-      ['title', 'topic', 'deadline', 'years', 'include', 'exclude'].forEach(function (key) { if (scope.elements[key]) scope.elements[key].value = state.project[key] || ''; });
+      ['title', 'topic', 'deadline', 'years', 'include', 'exclude', 'researchStage', 'deliveryGoal', 'weeklyHours'].forEach(function (key) { if (scope.elements[key]) scope.elements[key].value = state.project[key] || ''; });
       scope.elements.cnTarget.value = state.project.cnTarget;
       scope.elements.enTarget.value = state.project.enTarget;
       $$('input[name="types"]', scope).forEach(function (input) { input.checked = state.project.types.indexOf(input.value) >= 0; });
@@ -563,6 +577,7 @@
     renderMetrics();
     renderWorkflow();
     renderAdvice();
+    renderJourney();
     renderRecent();
     renderLibrary();
     renderScreening();
@@ -1031,7 +1046,13 @@
     toast('完整项目备份已导出');
   }
   function exportSynthesis() {
-    var content = Synthesis.buildMarkdownSynthesis(state.project, formalRecords());
+    var content = [
+      '# 研究交付画像',
+      '',
+      Experience.profileLines(currentProfile()).map(function (line) { return '- ' + line; }).join('\n'),
+      '',
+      Synthesis.buildMarkdownSynthesis(state.project, formalRecords())
+    ].join('\n');
     downloadFile('文径-证据综合-' + localDateStamp() + '.md', content, 'text/markdown;charset=utf-8');
     toast('Markdown 证据综合已导出');
   }
@@ -1063,6 +1084,7 @@
       '',
       '任务：' + state.project.title,
       '研究主题：' + state.project.topic,
+      Experience.profileLines(currentProfile()).join('\n'),
       '生成时间：' + new Date().toLocaleString('zh-CN'),
       '交付日期：' + formatDate(state.project.deadline),
       '',
@@ -1348,6 +1370,7 @@
       state.project = Object.assign(state.project, data, {
         cnTarget: Math.max(0, Number(data.cnTarget || 0)),
         enTarget: Math.max(0, Number(data.enTarget || 0)),
+        weeklyHours: Math.min(40, Math.max(1, Number(data.weeklyHours || 5))),
         types: $$('input[name="types"]:checked', form).map(function (input) { return input.value; })
       });
       clearFormDirty(form);

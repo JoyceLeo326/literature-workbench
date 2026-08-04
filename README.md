@@ -1,8 +1,8 @@
 # 文径 · 文献研究工作台
 
-[打开文径](https://literature-workbench.vercel.app/)
+[打开文径（GitHub Pages）](https://joyceleo326.github.io/literature-workbench/) · [备用入口（Vercel）](https://literature-workbench.vercel.app/)
 
-文径把一项文献任务拆成可复查的连续流程：定义研究边界、建立检索式、维护题录、完成人工筛选与证据综合、检查质量、整理交付。访客可以直接开始工作；右上角账户入口用于在同一设备上区分研究空间。
+文径把一项文献任务拆成可复查的连续流程：定义研究边界、建立检索式、维护题录、完成人工筛选与证据综合、检查质量、整理交付。用户选择研究阶段、交付目标和每周可投入时间后，工作台会据此组织四段研究旅程、下一步建议与导出上下文。访客可以直接开始工作；右上角账户入口用于在同一设备上区分研究空间。
 
 ## 核心工作流
 
@@ -12,6 +12,8 @@
 4. 逐条保存筛选决定、排除理由、核心发现、人工证据等级与主题标签。
 5. 按决定、等级、主题和文本筛选证据矩阵，检查重复、缺失和来源可追溯性。
 6. 导出 UTF-8 BOM CSV、完整 JSON、BibTeX、Markdown 证据综合与质量报告。
+
+研究画像并非装饰字段：课程研究、论文阶段和工作研究对应不同的证据节奏；课堂汇报、开题方案和文献综述会改变建议重点，投入时间则决定每周建议的专注时段。画像会随项目保存在浏览器中，并写入 Markdown 综合与质量报告。
 
 ## 产品能力
 
@@ -46,6 +48,11 @@ node --check literature-core.js
 node --check workspace-core.js
 node --check account-core.js
 node --check cost-policy.js
+node --check experience-core.js
+node scripts/build-pages.mjs
+node scripts/scan-secrets.mjs . pages-dist
 ```
+
+`pages-dist/` 是 GitHub Pages 的纯静态发布目录；构建与部署工作流会在上传前复跑行为测试，并对当前树和发布产物执行不回显密钥值的扫描。
 
 维护者侧的服务与部署边界见 [运行约束说明](docs/zero-owner-cost.md)。

@@ -101,6 +101,14 @@
             <article class="metric-card"><span>已完成核验</span><strong><b data-verified-count>0</b><small>篇</small></strong><div class="meter"><i data-verified-progress></i></div><p data-verified-copy>等待核验</p></article>
           </div>
 
+          <article class="panel research-journey reveal" data-research-journey aria-live="polite">
+            <div class="journey-heading">
+              <div><p class="eyebrow">你的研究现场</p><h3>从问题出发，到证据落地</h3></div>
+              <button class="text-link" type="button" data-nav="scope">调整研究节奏 <svg><use href="#i-arrow"/></svg></button>
+            </div>
+            <div class="journey-grid" data-journey-grid></div>
+          </article>
+
           <div class="overview-grid">
             <article class="panel workflow-panel reveal">
               <div class="panel-heading"><div><p class="eyebrow">当前流程</p><h3>从检索到交付</h3></div><span class="status-pill" data-stage-pill>准备检索</span></div>
@@ -140,6 +148,12 @@
               <div class="field"><label for="research-topic">核心主题</label><textarea id="research-topic" name="topic" required rows="4">科技创新政策、企业创新能力与产业升级之间的作用机制</textarea><small>用一句话描述研究对象、关系与场景。</small></div>
               <div class="form-row two"><div class="field"><label for="deadline">交付日期</label><input id="deadline" name="deadline" type="date" value="2026-07-19" required></div><div class="field"><label for="year-range">年份范围</label><input id="year-range" name="years" value="2015-2026"></div></div>
               <div class="form-row two"><div class="field"><label for="cn-target">中文目标</label><input id="cn-target" name="cnTarget" type="number" min="0" value="40"></div><div class="field"><label for="en-target">英文目标</label><input id="en-target" name="enTarget" type="number" min="0" value="20"></div></div>
+              <div class="section-title profile-title"><span>你的研究节奏</span><small>将影响任务建议与交付内容</small></div>
+              <div class="form-row three profile-fields">
+                <div class="field"><label for="research-stage">当前阶段</label><select id="research-stage" name="researchStage"><option value="coursework">课程研究</option><option value="thesis">论文阶段</option><option value="professional">工作研究</option></select></div>
+                <div class="field"><label for="delivery-goal">本次交付</label><select id="delivery-goal" name="deliveryGoal"><option value="class-report">课堂汇报</option><option value="proposal">开题方案</option><option value="review">文献综述</option></select></div>
+                <div class="field"><label for="weekly-hours">每周可投入</label><div class="input-suffix"><input id="weekly-hours" name="weeklyHours" type="number" min="1" max="40" value="5"><span>小时</span></div></div>
+              </div>
             </div>
 
             <div class="scope-side">
@@ -345,6 +359,7 @@
   <script src="cost-policy.js"></script>
   <script src="literature-core.js"></script>
   <script src="workspace-core.js"></script>
+  <script src="experience-core.js"></script>
   <script src="account-core.js"></script>
   <script src="script.js"></script>
 </body>
