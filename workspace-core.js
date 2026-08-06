@@ -6,7 +6,7 @@
   'use strict';
 
   var WORKSPACE_VERSION = 1;
-  var PROJECT_VERSION = 3;
+  var PROJECT_VERSION = 4;
 
   function timestamp(value) {
     return value || new Date().toISOString();
@@ -38,6 +38,7 @@
         researchStage: String(input.researchStage || 'coursework'),
         deliveryGoal: String(input.deliveryGoal || 'class-report'),
         weeklyHours: Number.isFinite(Number(input.weeklyHours)) ? Math.min(40, Math.max(1, Math.round(Number(input.weeklyHours)))) : 5,
+        reviewFeedback: null,
         include: String(input.include || '').trim(),
         exclude: String(input.exclude || '').trim(),
         types: Array.isArray(input.types) ? input.types.slice() : ['期刊论文', '会议论文', '研究报告']
