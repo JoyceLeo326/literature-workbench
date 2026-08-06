@@ -12,12 +12,16 @@
   var Workspace = window.LitpathWorkspace;
   var Account = window.LitpathAccount;
   var Experience = window.LitpathExperience;
+  var Story = window.LitpathStory;
   var selectedIds = new Set();
   var pendingDelete = null;
   var issueFilter = 'all';
   var dirtyForms = new Set();
   var screeningSaveTimer = null;
   var dialogReturnFocus = null;
+  var storyProjectId = '';
+  var activeStoryChapterId = '';
+  var activeStorySceneId = '';
 
   function $(selector, root) { return (root || document).querySelector(selector); }
   function $$(selector, root) { return Array.prototype.slice.call((root || document).querySelectorAll(selector)); }
@@ -301,13 +305,14 @@
     $('[data-total-target]').textContent = totalTarget;
     $('[data-cn-target]').textContent = cnTarget;
     $('[data-en-target]').textContent = enTarget;
-    setProgress('[data-total-progress]', totalTarget ? c.total / totalTarget * 100 : 100);
-    setProgress('[data-cn-progress]', cnTarget ? c.cn / cnTarget * 100 : 100);
-    setProgress('[data-en-progress]', enTarget ? c.en / enTarget * 100 : 100);
+    $('[data-overview-title]').textContent = totalTarget ? '把 ' + totalTarget + ' 篇文献，整理成一套可复查的研究底稿。' : '把散落的文献，整理成一套可复查的研究底稿。';
+    setProgress('[data-total-progress]', totalTarget ? c.total / totalTarget * 100 : 0);
+    setProgress('[data-cn-progress]', cnTarget ? c.cn / cnTarget * 100 : 0);
+    setProgress('[data-en-progress]', enTarget ? c.en / enTarget * 100 : 0);
     setProgress('[data-verified-progress]', c.total ? c.verified / c.total * 100 : 0);
-    $('[data-total-copy]').textContent = c.total ? '已完成 ' + Math.round(c.total / Math.max(totalTarget, 1) * 100) + '%' : '尚未录入文献';
-    $('[data-cn-copy]').textContent = c.cn >= cnTarget ? '中文目标已完成' : '还需 ' + Math.max(0, cnTarget - c.cn) + ' 篇';
-    $('[data-en-copy]').textContent = c.en >= enTarget ? '英文目标已完成' : '还需 ' + Math.max(0, enTarget - c.en) + ' 篇';
+    $('[data-total-copy]').textContent = !totalTarget ? '尚未设置文献目标' : (c.total ? '已完成 ' + Math.round(c.total / totalTarget * 100) + '%' : '尚未录入文献');
+    $('[data-cn-copy]').textContent = !cnTarget ? '尚未设置中文目标' : (c.cn >= cnTarget ? '中文目标已完成' : '还需 ' + Math.max(0, cnTarget - c.cn) + ' 篇');
+    $('[data-en-copy]').textContent = !enTarget ? '尚未设置英文目标' : (c.en >= enTarget ? '英文目标已完成' : '还需 ' + Math.max(0, enTarget - c.en) + ' 篇');
     $('[data-verified-copy]').textContent = c.verified ? c.verified + ' 篇已回到原文确认' : '等待核验';
     $$('[data-nav-count]').forEach(function (el) { el.textContent = c.total; });
     $('[data-csv-status]').textContent = '包含 ' + c.total + ' 条记录';
@@ -337,6 +342,11 @@
     var issues = analyzeQuality();
     var c = counts();
     var screening = Synthesis.summarizeScreening(formalRecords());
+    var review = Story.normalizeFeedback(state.project.reviewFeedback);
+    if (review.signal && review.signal !== 'worked') {
+      var response = Story.nextMove(review);
+      return { index: '↻', title: response.title, copy: response.copy, view: response.view };
+    }
     if (!projectHasScope()) return { index: '01', title: '先确认研究主题', copy: '明确范围后再检索，可以减少后续返工。', view: 'scope' };
     if (!state.searchLogs.length) return { index: '02', title: '记录第一条检索式', copy: '保留平台、关键词和查询时间，后续才能复查。', view: 'queries' };
     if (!c.total) return { index: '03', title: '录入第一篇文献', copy: '从样例开始确认目录字段和摘要口径。', view: 'library' };
@@ -364,6 +374,78 @@
     container.innerHTML = journey.map(function (item, index) {
       return '<article class="journey-beat"><span>0' + (index + 1) + ' · ' + escapeHTML(item.beat) + '</span><strong>' + escapeHTML(item.title) + '</strong><p>' + escapeHTML(item.copy) + '</p></article>';
     }).join('');
+  }
+
+  function storyDefaultMove(chapterId) {
+    var moves = {
+      orient: { view: 'scope', title: '写下研究边界', copy: '先确认对象、关系、年份、材料类型和明确的排除条件。' },
+      screen: { view: 'screening', title: '处理下一组候选', copy: '逐条对照边界，保留纳入、排除和仍待核验的理由。' },
+      evidence: { view: 'screening', title: '回到原文核验证据', copy: '补齐核心发现、证据等级、主题标签与限制条件。' },
+      synthesize: { view: 'screening', title: '重排证据关系', copy: '比较主题、时间和争议结构，再选择最适合交付对象的一条。' },
+      deliver: { view: 'delivery', title: '检查交付包', copy: '确认目录、引用、质量报告和完整备份都能被下一位读者复查。' },
+      continue: { view: 'overview', title: '确认下一轮问题', copy: '把新的追问转成一个明确的检索、核验或改写动作。' }
+    };
+    return moves[chapterId] || moves.orient;
+  }
+
+  function renderStory() {
+    var gallery = $('[data-story-gallery]');
+    if (!gallery || !Story) return;
+    var review = Story.normalizeFeedback(state.project.reviewFeedback);
+    var recommended = Story.recommendedChapter(currentProfile(), review, counts());
+    if (storyProjectId !== state.id || !Story.chapterById(activeStoryChapterId) || !activeStoryChapterId) {
+      storyProjectId = state.id;
+      activeStoryChapterId = recommended.id;
+      activeStorySceneId = '';
+    }
+
+    var chapterScenes = Story.SCENES.filter(function (scene) { return scene.chapter === activeStoryChapterId; });
+    var scene = Story.SCENES.filter(function (item) { return item.id === activeStorySceneId; })[0];
+    if (!scene || scene.chapter !== activeStoryChapterId) {
+      scene = chapterScenes[0];
+      activeStorySceneId = scene.id;
+    }
+    var chapter = Story.chapterById(scene.chapter);
+    var absoluteIndex = Story.SCENES.indexOf(scene) + 1;
+    var image = $('[data-story-image]');
+    image.src = scene.asset;
+    image.alt = scene.alt;
+    image.setAttribute('loading', absoluteIndex === 1 ? 'eager' : 'lazy');
+    $('[data-story-scene-meta]').textContent = String(absoluteIndex).padStart(2, '0') + ' · ' + scene.role;
+    $('[data-story-scene-title]').textContent = scene.title;
+    $('[data-story-scene-copy]').textContent = scene.copy;
+    $('[data-story-position]').textContent = String(absoluteIndex).padStart(2, '0') + ' / ' + Story.SCENES.length;
+    $('[data-story-chapter-title]').textContent = chapter.title;
+    $('[data-story-recommendation]').textContent = recommended.title;
+    $('[data-story-reason]').textContent = recommended.reason;
+
+    var move = review.signal ? Story.nextMove(review) : storyDefaultMove(recommended.id);
+    $('[data-story-next-title]').textContent = move.title;
+    $('[data-story-next-copy]').textContent = move.copy;
+    $('[data-story-next-action]').setAttribute('data-target-view', move.view);
+
+    $('[data-story-chapters]').innerHTML = Story.CHAPTERS.map(function (item) {
+      var active = item.id === activeStoryChapterId;
+      return '<button class="story-chapter story-control' + (active ? ' is-active' : '') + '" type="button" role="tab" aria-selected="' + active + '" data-story-chapter="' + escapeHTML(item.id) + '"><span>' + escapeHTML(item.index + ' · ' + item.eyebrow) + '</span><strong>' + escapeHTML(item.title) + '</strong></button>';
+    }).join('');
+
+    $('[data-story-scenes]').innerHTML = chapterScenes.map(function (item) {
+      var active = item.id === activeStorySceneId;
+      var number = Story.SCENES.indexOf(item) + 1;
+      return '<button class="story-scene story-control' + (active ? ' is-active' : '') + '" type="button" data-story-scene="' + escapeHTML(item.id) + '" aria-current="' + (active ? 'true' : 'false') + '"><img src="' + escapeHTML(item.asset) + '" alt="" width="144" height="96" loading="lazy" decoding="async"><span><span>' + String(number).padStart(2, '0') + ' · ' + escapeHTML(item.role) + '</span><strong>' + escapeHTML(item.title) + '</strong></span></button>';
+    }).join('');
+
+    var form = $('[data-story-feedback-form]');
+    if (form && !form.contains(document.activeElement)) {
+      form.elements.signal.value = review.signal;
+      form.elements.note.value = review.note;
+    }
+    var feedbackStatus = $('[data-story-feedback-status]');
+    if (review.signal) {
+      feedbackStatus.textContent = '已保存「' + Story.SIGNALS[review.signal].label + '」' + (review.updatedAt ? ' · ' + formatTime(review.updatedAt) : '') + '，下一轮路径已重排。';
+    } else {
+      feedbackStatus.textContent = '反馈保存后，会改写进入章节和任务建议。';
+    }
   }
 
   function renderRecent() {
@@ -578,6 +660,7 @@
     renderWorkflow();
     renderAdvice();
     renderJourney();
+    renderStory();
     renderRecent();
     renderLibrary();
     renderScreening();
@@ -1050,6 +1133,7 @@
       '# 研究交付画像',
       '',
       Experience.profileLines(currentProfile()).map(function (line) { return '- ' + line; }).join('\n'),
+      Story.feedbackLines(state.project.reviewFeedback).map(function (line) { return '- ' + line; }).join('\n'),
       '',
       Synthesis.buildMarkdownSynthesis(state.project, formalRecords())
     ].join('\n');
@@ -1085,6 +1169,7 @@
       '任务：' + state.project.title,
       '研究主题：' + state.project.topic,
       Experience.profileLines(currentProfile()).join('\n'),
+      Story.feedbackLines(state.project.reviewFeedback).join('\n'),
       '生成时间：' + new Date().toLocaleString('zh-CN'),
       '交付日期：' + formatDate(state.project.deadline),
       '',
@@ -1286,6 +1371,32 @@
     document.addEventListener('click', function (event) {
       var nav = event.target.closest('[data-nav]');
       if (nav) { event.preventDefault(); showView(nav.getAttribute('data-nav')); return; }
+      var storyChapter = event.target.closest('[data-story-chapter]');
+      if (storyChapter) {
+        activeStoryChapterId = storyChapter.getAttribute('data-story-chapter');
+        activeStorySceneId = '';
+        renderStory();
+        return;
+      }
+      var storyScene = event.target.closest('[data-story-scene]');
+      if (storyScene) {
+        activeStorySceneId = storyScene.getAttribute('data-story-scene');
+        var selectedScene = Story.SCENES.filter(function (item) { return item.id === activeStorySceneId; })[0];
+        if (selectedScene) activeStoryChapterId = selectedScene.chapter;
+        renderStory();
+        return;
+      }
+      if (event.target.closest('[data-story-prev], [data-story-next]')) {
+        var index = Story.SCENES.findIndex(function (item) { return item.id === activeStorySceneId; });
+        var direction = event.target.closest('[data-story-prev]') ? -1 : 1;
+        var nextIndex = (index + direction + Story.SCENES.length) % Story.SCENES.length;
+        activeStorySceneId = Story.SCENES[nextIndex].id;
+        activeStoryChapterId = Story.SCENES[nextIndex].chapter;
+        renderStory();
+        return;
+      }
+      var storyAction = event.target.closest('[data-story-next-action]');
+      if (storyAction) { showView(storyAction.getAttribute('data-target-view')); return; }
       if (event.target.closest('[data-menu]')) { $('#sidebar').classList.toggle('is-open'); return; }
       if (event.target.closest('[data-create-project]')) { openProjectDialog(); return; }
       if (event.target.closest('[data-auth-login]')) { openAuthDialog('login'); return; }
@@ -1314,7 +1425,7 @@
       var copyQuery = event.target.closest('[data-copy-query]');
       if (copyQuery) { copyText(state.queries[copyQuery.getAttribute('data-copy-query')], '检索式已复制'); return; }
       if (event.target.closest('[data-log-query]')) {
-        var platform = window.prompt('检索平台', '知网 / Google Scholar');
+        var platform = window.prompt('检索平台', '知网 / 万方 / Web of Science');
         if (platform === null) return;
         var note = window.prompt('结果数量或筛选说明', '初检结果待筛选');
         if (note === null) return;
@@ -1358,6 +1469,24 @@
     $('[data-login-form]').addEventListener('submit', loginAccount);
     $('[data-register-form]').addEventListener('submit', registerAccount);
     $('[data-project-switcher]').addEventListener('change', function (event) { switchProject(event.target.value); });
+    $('[data-story-feedback-form]').addEventListener('submit', function (event) {
+      event.preventDefault();
+      var data = formDataObject(event.currentTarget);
+      var review = Story.normalizeFeedback({ signal: data.signal, note: data.note, updatedAt: nowISO() });
+      if (!review.signal) {
+        event.currentTarget.elements.signal.focus();
+        toast('请选择最接近本轮情况的一项。', 'error');
+        return;
+      }
+      state.project.reviewFeedback = review;
+      var move = Story.nextMove(review);
+      storyProjectId = state.id;
+      activeStoryChapterId = move.chapter;
+      activeStorySceneId = move.sceneId;
+      saveState('研究反馈已保存');
+      renderAll();
+      toast('下一轮路径已根据反馈更新');
+    });
     $('[data-scope-form]').addEventListener('submit', function (event) {
       event.preventDefault();
       var form = event.currentTarget;

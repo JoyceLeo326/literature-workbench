@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">文径品牌标志</title>
+  <desc id="desc">展开的书页、向前延伸的证据路径与朱砂书签组成的标志</desc>
+  <rect width="64" height="64" rx="16" fill="#F5F0E5"/>
+  <path d="M12 17.5c7.7-1.7 14.5.1 20 5.2v27.2c-5.5-5.1-12.3-6.8-20-5.2V17.5Z" fill="#FFFCF4" stroke="#123C3A" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M52 17.5c-7.7-1.7-14.5.1-20 5.2v27.2c5.5-5.1 12.3-6.8 20-5.2V17.5Z" fill="#E4EEE8" stroke="#123C3A" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M18 26c4.4-.5 8.1.5 11 3M18 33c4.4-.5 8.1.5 11 3M46 26c-4.4-.5-8.1.5-11 3" fill="none" stroke="#2C7772" stroke-width="2" stroke-linecap="round"/>
+  <path d="M46 33c-5.3.1-8.8 2.5-11.4 7.4" fill="none" stroke="#2C7772" stroke-width="2" stroke-linecap="round"/>
+  <path d="M39 14h9v19l-4.5-3.5L39 33V14Z" fill="#C54A38" stroke="#8F3025" stroke-width="1.5" stroke-linejoin="round"/>
+  <circle cx="35" cy="40" r="2.7" fill="#D59B48"/>
+</svg>

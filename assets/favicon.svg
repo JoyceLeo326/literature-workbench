@@ -1,5 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#12372f"/>
-  <path d="M15 43V27h8v16zm13 0V17h8v26zm13 0V23h8v20z" fill="#f5f1df"/>
-  <path d="M12 48h40" stroke="#d5a658" stroke-width="3" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">文径</title>
+  <rect width="64" height="64" rx="14" fill="#123C3A"/>
+  <path d="M11 17c8-2 15 .2 21 5.5V51c-6-5.3-13-7.3-21-5.4V17Z" fill="#FFFCF4" stroke="#F5F0E5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M53 17c-8-2-15 .2-21 5.5V51c6-5.3 13-7.3 21-5.4V17Z" fill="#DCEAE5" stroke="#F5F0E5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M40 12h9v21l-4.5-3.6L40 33V12Z" fill="#C54A38"/>
+  <path d="M19 28c4-.4 7.3.5 10 2.8M45 29c-4.4.2-7.7 2.2-10 6" fill="none" stroke="#2C7772" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="35" cy="40" r="2.7" fill="#D59B48"/>
 </svg>
