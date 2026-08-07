@@ -81,7 +81,7 @@
       searchLogs: Array.isArray(incoming.searchLogs) ? incoming.searchLogs.slice() : [],
       records: Array.isArray(incoming.records) ? incoming.records.slice() : [],
       strategyDecisions: Array.isArray(incoming.strategyDecisions)
-        ? plainClone(incoming.strategyDecisions.slice(-12), [])
+        ? plainClone(incoming.strategyDecisions, [])
         : [],
       strategyChoiceId: STRATEGY_IDS.indexOf(incoming.strategyChoiceId) >= 0 ? incoming.strategyChoiceId : '',
       strategyProposal: incoming.strategyProposal && typeof incoming.strategyProposal === 'object' && !Array.isArray(incoming.strategyProposal)

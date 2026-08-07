@@ -1,5 +1,5 @@
 var CACHE_PREFIX = 'litpath-workbench-';
-var CACHE = CACHE_PREFIX + 'v15';
+var CACHE = CACHE_PREFIX + 'v16';
 var CORE = ['./', './index.html', './styles.css', './literature-core.js', './workspace-core.js', './experience-core.js', './story-core.js', './decision-core.js', './account-core.js', './script.js', './manifest.webmanifest', './favicon.svg', './assets/brand/wenjing-mark.svg', './assets/story/wenjing-01-dusk-question.webp'];
 
 self.addEventListener('install', function (event) {

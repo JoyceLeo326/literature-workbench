@@ -32,7 +32,16 @@
   }
   function feedbackOf(input) {
     input = input || {};
-    return { signal: FEEDBACK_LABELS[input.signal] ? input.signal : '', note: text(input.note) };
+    return {
+      signal: FEEDBACK_LABELS[input.signal] ? input.signal : '',
+      note: text(input.note).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 240)
+    };
+  }
+
+  function decisionFeedbackChanged(previousInput, nextInput) {
+    var previous = feedbackOf(previousInput);
+    var next = feedbackOf(nextInput);
+    return previous.signal !== next.signal || previous.note !== next.note;
   }
   function terms(value) {
     var raw = text(value).toLowerCase();
@@ -251,6 +260,21 @@
     };
   }
 
+  function normalizeDecisionContext(value) {
+    var source = value && typeof value === 'object' ? value : {};
+    var normalized = buildDecisionContext(source.profile, source.project, source.counts, source.feedback);
+    var suppliedDeadline = source.deadline && typeof source.deadline === 'object' ? source.deadline : null;
+    var deadlineBands = ['未设置', '已到期', '一周内', '三周内', '三周以上'];
+    if (suppliedDeadline && deadlineBands.indexOf(suppliedDeadline.band) >= 0 && text(suppliedDeadline.label)) {
+      normalized.deadline = {
+        days: suppliedDeadline.days == null ? null : Math.round(number(suppliedDeadline.days, 0)),
+        band: suppliedDeadline.band,
+        label: text(suppliedDeadline.label).slice(0, 80)
+      };
+    }
+    return normalized;
+  }
+
   function candidateScore(id, context) {
     var profile = context.profile;
     var feedback = context.feedback.signal;
@@ -330,7 +354,7 @@
 
   function candidatesFromContext(context) {
     return strategyDefinitions(context).map(function (candidate, index) {
-      return Object.assign({}, candidate, { score: candidateScore(candidate.id, context), stableIndex: index });
+      return Object.assign({}, candidate, { score: clamp(candidateScore(candidate.id, context), 0, 100), stableIndex: index });
     }).sort(function (left, right) {
       return right.score - left.score || left.stableIndex - right.stableIndex;
     }).map(function (candidate, index) {
@@ -349,7 +373,7 @@
   }
 
   function contextSignature(context) {
-    var value = context || {};
+    var value = normalizeDecisionContext(context);
     return JSON.stringify({
       profile: value.profile,
       project: value.project,
@@ -365,29 +389,26 @@
   }
 
   function diffDecisionContexts(previousInput, nextInput) {
-    var previous = previousInput && previousInput.policy ? previousInput : buildDecisionContext(
-      previousInput && previousInput.profile,
-      previousInput && previousInput.project,
-      previousInput && previousInput.counts,
-      previousInput && previousInput.feedback,
-      previousInput && previousInput.options
-    );
-    var next = nextInput && nextInput.policy ? nextInput : buildDecisionContext(
-      nextInput && nextInput.profile,
-      nextInput && nextInput.project,
-      nextInput && nextInput.counts,
-      nextInput && nextInput.feedback,
-      nextInput && nextInput.options
-    );
+    var previous = normalizeDecisionContext(previousInput);
+    var next = normalizeDecisionContext(nextInput);
     var changes = [];
     if (previous.profile.researchStage !== next.profile.researchStage) changes.push('研究阶段从“' + STAGE_LABELS[previous.profile.researchStage] + '”改为“' + STAGE_LABELS[next.profile.researchStage] + '”');
     if (previous.profile.deliveryGoal !== next.profile.deliveryGoal) changes.push('交付目标从“' + GOAL_LABELS[previous.profile.deliveryGoal] + '”改为“' + GOAL_LABELS[next.profile.deliveryGoal] + '”');
     if (previous.profile.weeklyHours !== next.profile.weeklyHours) changes.push('每周投入从 ' + previous.profile.weeklyHours + ' 小时改为 ' + next.profile.weeklyHours + ' 小时');
+    if (previous.project.title !== next.project.title) changes.push('任务名称从“' + (previous.project.title || '未命名') + '”改为“' + (next.project.title || '未命名') + '”');
     if (previous.project.topic !== next.project.topic) changes.push('研究问题已经改写');
     if (previous.project.deadline !== next.project.deadline) changes.push('交付日期从“' + (previous.project.deadline || '未设置') + '”改为“' + (next.project.deadline || '未设置') + '”');
+    if (previous.project.years !== next.project.years) changes.push('年份范围从“' + (previous.project.years || '未设置') + '”改为“' + (next.project.years || '未设置') + '”');
     if (previous.project.cnTarget !== next.project.cnTarget || previous.project.enTarget !== next.project.enTarget) changes.push('中英文文献目标已经调整');
-    if (previous.counts.cn !== next.counts.cn || previous.counts.en !== next.counts.en || previous.counts.verified !== next.counts.verified) changes.push('题录与核验进度从中文 ' + previous.counts.cn + '、英文 ' + previous.counts.en + '、已核验 ' + previous.counts.verified + ' 更新为中文 ' + next.counts.cn + '、英文 ' + next.counts.en + '、已核验 ' + next.counts.verified);
-    if (previous.feedback.signal !== next.feedback.signal || previous.feedback.note !== next.feedback.note) changes.push('真实反馈从“' + (previous.policy.feedbackCopy || '尚无上一轮反馈') + '”更新为“' + (next.policy.feedbackCopy || '尚无上一轮反馈') + '”');
+    if (previous.project.include !== next.project.include) changes.push('纳入条件已经改写');
+    if (previous.project.exclude !== next.project.exclude) changes.push('排除条件已经改写');
+    if (previous.counts.total !== next.counts.total || previous.counts.cn !== next.counts.cn || previous.counts.en !== next.counts.en || previous.counts.verified !== next.counts.verified) changes.push('题录与核验进度从总计 ' + previous.counts.total + '、中文 ' + previous.counts.cn + '、英文 ' + previous.counts.en + '、已核验 ' + previous.counts.verified + ' 更新为总计 ' + next.counts.total + '、中文 ' + next.counts.cn + '、英文 ' + next.counts.en + '、已核验 ' + next.counts.verified);
+    if (previous.feedback.signal !== next.feedback.signal) changes.push('真实反馈从“' + (previous.policy.feedbackCopy || '尚无上一轮反馈') + '”更新为“' + (next.policy.feedbackCopy || '尚无上一轮反馈') + '”');
+    if (previous.feedback.note !== next.feedback.note) {
+      if (!previous.feedback.note) changes.push('新增现场补充：“' + next.feedback.note + '”');
+      else if (!next.feedback.note) changes.push('现场补充已移除，原记录为“' + previous.feedback.note + '”');
+      else changes.push('现场补充从“' + previous.feedback.note + '”更新为“' + next.feedback.note + '”');
+    }
     if (previous.deadline.band !== next.deadline.band) changes.push('交付时间状态从“' + previous.deadline.band + '”进入“' + next.deadline.band + '”');
     if (previous.policy.languageFocus !== next.policy.languageFocus) changes.push('优先补证语种从“' + previous.policy.languageFocus + '”调整为“' + next.policy.languageFocus + '”');
     var weightNames = { relevance: '边界相关', traceability: '来源追溯', completeness: '字段完整', recency: '时间新近', contrast: '反证分歧' };
@@ -421,16 +442,19 @@
       firstAction: text(source.firstAction).slice(0, 500),
       reviewPrompt: text(source.reviewPrompt).slice(0, 500),
       route: Array.isArray(source.route) ? source.route.map(text).filter(Boolean).slice(0, 6) : [],
-      score: Math.round(number(source.score, 0)),
+      score: clamp(Math.round(number(source.score, 0)), 0, 100),
       rank: Math.max(1, Math.round(number(source.rank, 1)))
     };
   }
 
   function createDecision(input) {
     var source = input && typeof input === 'object' ? input : {};
-    var context = source.context && source.context.policy ? source.context : buildDecisionContext(source.profile, source.project, source.counts, source.feedback, source.options);
+    var context = source.context && typeof source.context === 'object'
+      ? normalizeDecisionContext(source.context)
+      : buildDecisionContext(source.profile, source.project, source.counts, source.feedback, source.options);
     var candidates = candidatesFromContext(context);
-    var candidate = candidates.filter(function (item) { return item.id === source.candidateId; })[0] || candidates[0];
+    var requestedCandidate = candidates.filter(function (item) { return item.id === source.candidateId; })[0] || null;
+    var candidate = requestedCandidate || candidates[0];
     var previous = source.previous && typeof source.previous === 'object' ? source.previous : null;
     var changes = previous && previous.context ? diffDecisionContexts(previous.context, context) : [];
     if (previous && previous.candidate && previous.candidate.id !== candidate.id) changes.push('人工选择从“' + previous.candidate.label + '”改为“' + candidate.label + '”');
@@ -446,15 +470,23 @@
 
   function normalizeDecisionHistory(value) {
     if (!Array.isArray(value)) return [];
-    return value.slice(-12).map(function (entry, index) {
+    var lastVersion = 0;
+    return value.map(function (entry) {
       var source = entry && typeof entry === 'object' ? entry : {};
-      var context = source.context && source.context.policy ? source.context : buildDecisionContext();
+      var context = normalizeDecisionContext(source.context);
+      var suppliedVersion = Math.max(1, Math.round(number(source.version, lastVersion + 1)));
+      var version = suppliedVersion > lastVersion ? suppliedVersion : lastVersion + 1;
+      lastVersion = version;
+      var validCandidate = source.candidate && ['focus', 'coverage', 'contrast'].indexOf(source.candidate.id) >= 0;
+      var candidate = validCandidate
+        ? candidateSnapshot(source.candidate)
+        : candidateSnapshot(candidatesFromContext(context)[0]);
       return {
-        version: index + 1,
+        version: version,
         confirmedAt: text(source.confirmedAt).slice(0, 60) || '已确认',
         context: context,
-        candidate: candidateSnapshot(source.candidate),
-        signature: text(source.signature) || decisionSignature(context, source.candidate && source.candidate.id),
+        candidate: candidate,
+        signature: decisionSignature(context, candidate.id),
         changes: Array.isArray(source.changes) ? source.changes.map(text).filter(Boolean).slice(0, 40) : []
       };
     });
@@ -464,20 +496,17 @@
     var source = input && typeof input === 'object' ? input : {};
     var previous = source.previous && typeof source.previous === 'object' ? source.previous : null;
     if (!previous || !previous.context) return null;
-    var context = source.context && source.context.policy ? source.context : buildDecisionContext(
-      source.profile,
-      source.project,
-      source.counts,
-      source.feedback,
-      source.options
-    );
+    var context = source.context && typeof source.context === 'object'
+      ? normalizeDecisionContext(source.context)
+      : buildDecisionContext(source.profile, source.project, source.counts, source.feedback, source.options);
     var candidates = candidatesFromContext(context);
-    var candidate = candidates.filter(function (item) { return item.id === source.candidateId; })[0] || candidates[0];
+    var requestedCandidate = candidates.filter(function (item) { return item.id === source.candidateId; })[0] || null;
+    var candidate = requestedCandidate || candidates[0];
     var signature = decisionSignature(context, candidate.id);
     if (signature === previous.signature) return null;
     var changes = diffDecisionContexts(previous.context, context);
     if (previous.candidate && previous.candidate.id !== candidate.id) {
-      changes.push('人工选择从“' + previous.candidate.label + '”改为“' + candidate.label + '”');
+      changes.push((requestedCandidate ? '人工选择' : '建议路线') + '从“' + previous.candidate.label + '”改为“' + candidate.label + '”');
     }
     return {
       version: Math.max(1, Math.round(number(source.version, number(previous.version, 0) + 1))),
@@ -489,14 +518,26 @@
       candidate: candidateSnapshot(candidate),
       signature: signature,
       feedbackLabel: context.policy.feedbackCopy,
+      feedbackNote: context.feedback.note,
       changes: changes,
       current: false
     };
   }
 
+  function normalizeDecisionProposal(value, previous) {
+    if (!value || typeof value !== 'object' || !previous || !previous.context || !value.context || typeof value.context !== 'object') return null;
+    return buildDecisionProposal({
+      previous: previous,
+      context: normalizeDecisionContext(value.context),
+      candidateId: value.candidateId,
+      version: Math.max(1, Math.round(number(previous.version, 0)) + 1),
+      createdAt: value.createdAt
+    });
+  }
+
   function buildDecisionArchive(historyInput, proposalInput) {
     var history = normalizeDecisionHistory(historyInput);
-    var proposal = proposalInput && typeof proposalInput === 'object' ? proposalInput : null;
+    var proposal = proposalInput && history.length ? normalizeDecisionProposal(proposalInput, history[history.length - 1]) : null;
     var lines = ['## 研究策略决策版本', ''];
     if (!history.length) lines.push('尚未确认研究策略。', '');
     history.forEach(function (decision) {
@@ -505,6 +546,7 @@
       lines.push('- 研究阶段：' + STAGE_LABELS[decision.context.profile.researchStage]);
       lines.push('- 交付目标：' + GOAL_LABELS[decision.context.profile.deliveryGoal]);
       lines.push('- 真实反馈：' + decision.context.policy.feedbackCopy);
+      if (decision.context.feedback.note) lines.push('- 现场补充：' + decision.context.feedback.note);
       lines.push('- 人工确认：' + decision.candidate.title);
       lines.push('- 收益：' + decision.candidate.gain);
       lines.push('- 代价：' + decision.candidate.tradeoff);
@@ -517,6 +559,7 @@
     if (proposal) {
       lines.push('### V' + Math.max(1, Math.round(number(proposal.version, history.length + 1))) + ' · 待人工确认');
       lines.push('- 真实反馈：' + text(proposal.feedbackLabel || (proposal.context && proposal.context.policy && proposal.context.policy.feedbackCopy) || '尚未记录'));
+      if (proposal.feedbackNote) lines.push('- 现场补充：' + proposal.feedbackNote);
       lines.push('- 当前候选：' + text(proposal.candidateLabel || '等待选择'));
       lines.push('- 事实差异：' + (Array.isArray(proposal.changes) && proposal.changes.length ? proposal.changes.map(text).filter(Boolean).join('；') : '尚无结构性变化'));
       lines.push('');
@@ -529,13 +572,16 @@
     buildSearchPlan: buildSearchPlan,
     scoreRecord: scoreRecord,
     rankRecords: rankRecords,
+    decisionFeedbackChanged: decisionFeedbackChanged,
     buildDecisionContext: buildDecisionContext,
+    normalizeDecisionContext: normalizeDecisionContext,
     buildStrategyCandidates: buildStrategyCandidates,
     decisionSignature: decisionSignature,
     diffDecisionContexts: diffDecisionContexts,
     createDecision: createDecision,
     normalizeDecisionHistory: normalizeDecisionHistory,
     buildDecisionProposal: buildDecisionProposal,
+    normalizeDecisionProposal: normalizeDecisionProposal,
     buildDecisionArchive: buildDecisionArchive
   };
 });

@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const Decision = require('../decision-core.js');
 const Workspace = require('../workspace-core.js');
@@ -37,6 +39,7 @@ test('always produces exactly three decision-ready strategies with explicit cons
     }
     assert.equal(strategy.route.length, 3);
     assert.ok(strategy.score > 0);
+    assert.ok(strategy.score <= 100, `${strategy.id}.score must remain interpretable`);
   }
 });
 
@@ -121,6 +124,14 @@ test('an unchanged context and choice does not invent a new proposal', () => {
   const v1 = Decision.createDecision({ context, candidateId: 'focus', confirmedAt: '2026-08-07 16:00' });
   assert.equal(Decision.buildDecisionProposal({ previous: v1, context, candidateId: 'focus' }), null);
   assert.deepEqual(Decision.diffDecisionContexts(context, context), []);
+  assert.equal(Decision.decisionFeedbackChanged(
+    { signal: 'worked', note: '本轮有效', updatedAt: '2026-08-07T08:00:00.000Z' },
+    { signal: 'worked', note: '本轮有效', updatedAt: '2026-08-07T09:00:00.000Z' }
+  ), false);
+  assert.equal(Decision.decisionFeedbackChanged(
+    { signal: 'worked', note: '本轮有效' },
+    { signal: 'worked', note: '本轮仍有效，但新增一条限制' }
+  ), true);
 });
 
 test('workspace normalization preserves confirmed versions, selection and a pending proposal', () => {
@@ -155,4 +166,138 @@ test('workspace normalization preserves confirmed versions, selection and a pend
   assert.equal(invalid.strategyChoiceId, '');
   assert.deepEqual(invalid.strategyDecisions, []);
   assert.equal(invalid.strategyProposal, null);
+});
+
+test('version history is never truncated or renumbered after twelve confirmations', () => {
+  const context = Decision.buildDecisionContext({}, baseProject, {}, {}, { now: NOW });
+  const template = Decision.createDecision({ context, candidateId: 'focus', confirmedAt: '2026-08-07 16:00' });
+  const rawHistory = Array.from({ length: 14 }, (_, index) => ({
+    ...JSON.parse(JSON.stringify(template)),
+    version: index + 1,
+    confirmedAt: `2026-08-${String(index + 1).padStart(2, '0')} 16:00`
+  }));
+
+  const normalized = Decision.normalizeDecisionHistory(rawHistory);
+  assert.equal(normalized.length, 14);
+  assert.deepEqual(normalized.map((entry) => entry.version), Array.from({ length: 14 }, (_, index) => index + 1));
+
+  const project = Workspace.normalizeProject({ strategyDecisions: rawHistory }, NOW);
+  assert.equal(project.strategyDecisions.length, 14);
+  assert.equal(project.strategyDecisions[0].version, 1);
+  assert.equal(project.strategyDecisions[13].version, 14);
+});
+
+test('feedback notes become truthful differences and remain visible in the archive', () => {
+  const previousContext = Decision.buildDecisionContext(
+    {}, baseProject, {},
+    { signal: 'missing-sources', note: '英文研究不足。' },
+    { now: NOW }
+  );
+  const nextContext = Decision.buildDecisionContext(
+    {}, baseProject, {},
+    { signal: 'missing-sources', note: '英文已补三篇，但关键数据库仍缺失。' },
+    { now: NOW }
+  );
+  const v1 = Decision.createDecision({ context: previousContext, candidateId: 'coverage', confirmedAt: '2026-08-07 16:00' });
+  const v2 = Decision.createDecision({ context: nextContext, candidateId: 'coverage', previous: v1, confirmedAt: '2026-08-07 16:30' });
+
+  assert.ok(v2.changes.some((line) => line.includes('现场补充')));
+  assert.ok(v2.changes.some((line) => line.includes('英文已补三篇')));
+  const archive = Decision.buildDecisionArchive([v1, v2], null);
+  assert.match(archive, /现场补充：英文研究不足/);
+  assert.match(archive, /现场补充：英文已补三篇/);
+  assert.doesNotMatch(v2.changes.join('\n'), /从“补齐来源与语种”更新为“补齐来源与语种”/);
+});
+
+test('every editable project field in the decision signature produces a factual diff', () => {
+  const previous = Decision.buildDecisionContext({}, baseProject, {}, {}, { now: NOW });
+  const cases = [
+    ['title', '平台劳动新题名', '任务名称'],
+    ['topic', '平台劳动中的工作时间控制', '研究问题'],
+    ['deadline', '2026-09-01', '交付日期'],
+    ['years', '2020-2026', '年份范围'],
+    ['cnTarget', 16, '文献目标'],
+    ['include', '仅纳入同行评议实证研究', '纳入条件'],
+    ['exclude', '排除纯观点文章', '排除条件']
+  ];
+  for (const [field, value, expected] of cases) {
+    const next = Decision.buildDecisionContext({}, { ...baseProject, [field]: value }, {}, {}, { now: NOW });
+    const changes = Decision.diffDecisionContexts(previous, next);
+    assert.ok(changes.length > 0, `${field} must not produce an empty diff`);
+    assert.ok(changes.some((line) => line.includes(expected)), `${field} must name the changed fact`);
+  }
+  const nextCounts = Decision.buildDecisionContext({}, baseProject, { total: 5, cn: 0, en: 0, verified: 0 }, {}, { now: NOW });
+  const previousCounts = Decision.buildDecisionContext({}, baseProject, { total: 4, cn: 0, en: 0, verified: 0 }, {}, { now: NOW });
+  assert.ok(Decision.diffDecisionContexts(previousCounts, nextCounts).some((line) => line.includes('题录与核验进度')));
+});
+
+test('malformed imported decision contexts are deeply normalized without crashing archive or diff', () => {
+  const malformed = [{
+    version: 7,
+    confirmedAt: '<script>alert(1)</script>',
+    context: { policy: {} },
+    candidate: { id: 'focus', label: '<img src=x onerror=alert(1)>' },
+    signature: 'forged',
+    changes: ['<b>forged</b>']
+  }];
+  const normalized = Decision.normalizeDecisionHistory(malformed);
+  assert.equal(normalized.length, 1);
+  assert.equal(normalized[0].version, 7);
+  assert.equal(normalized[0].context.profile.researchStage, 'coursework');
+  assert.ok(normalized[0].context.policy.weights.relevance > 0);
+  assert.doesNotThrow(() => Decision.diffDecisionContexts(normalized[0].context, Decision.buildDecisionContext()));
+  assert.doesNotThrow(() => Decision.buildDecisionArchive(normalized, { context: { policy: {} }, candidateId: 'focus' }));
+  assert.notEqual(normalized[0].signature, 'forged');
+  assert.equal(Decision.normalizeDecisionContext({ feedback: { note: 'x'.repeat(600) } }).feedback.note.length, 240);
+  const malformedProposal = {
+    version: 999,
+    candidateId: 'not-real',
+    context: { policy: {}, feedback: { signal: 'missing-sources', note: `first\n${'z'.repeat(600)}` } },
+    changes: Array.from({ length: 1000 }, () => 'forged')
+  };
+  const safeProposal = Decision.normalizeDecisionProposal(malformedProposal, normalized[0]);
+  assert.equal(safeProposal.version, normalized[0].version + 1);
+  assert.ok(safeProposal.feedbackNote.length <= 240);
+  assert.doesNotMatch(safeProposal.feedbackNote, /[\r\n]/);
+  assert.ok(safeProposal.changes.length < 50);
+  const safeArchive = Decision.buildDecisionArchive(normalized, malformedProposal);
+  assert.doesNotMatch(safeArchive, /V999|forgedforged/);
+});
+
+test('product exposes a complete human-confirmed decision desk and versioned export', () => {
+  const root = path.resolve(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const script = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
+
+  for (const marker of [
+    'data-strategy-desk',
+    'data-strategy-context',
+    'data-strategy-candidates',
+    'data-strategy-accept',
+    'data-confirm-strategy',
+    'data-strategy-proposal',
+    'data-strategy-diff',
+    'data-strategy-feedback-form',
+    'data-strategy-history',
+    'data-export="strategy"'
+  ]) assert.match(html, new RegExp(marker));
+
+  assert.match(script, /Decision\.buildDecisionProposal/);
+  assert.match(script, /Decision\.buildDecisionArchive/);
+  assert.match(script, /function confirmStrategyDecision/);
+  assert.match(script, /function exportStrategy/);
+  assert.match(script, /Decision\.decisionFeedbackChanged/);
+  assert.match(script, /反馈没有变化，当前 V.*保持有效/);
+  const feedbackHandler = script.slice(
+    script.indexOf('function applyResearchFeedback'),
+    script.indexOf('function submitStrategyFeedback')
+  );
+  assert.doesNotMatch(feedbackHandler, /refreshStrategyProposalState/);
+  assert.match(script, /strategyDecisions/);
+  assert.match(script, /strategyProposal/);
+  assert.match(script, /new Blob/);
+  assert.match(html, /data-strategy-proposal-note/);
+  assert.match(script, /现场补充/);
+  assert.match(fs.readFileSync(path.join(root, 'styles.css'), 'utf8'), /\.strategy-candidate-summary[^}]*font-size:\s*12px/);
+  assert.doesNotMatch(html, /无需登录|本机|当前设备|本地起步|0成本|零成本|账号稍后再说/);
 });

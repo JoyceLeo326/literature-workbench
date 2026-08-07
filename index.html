@@ -265,14 +265,49 @@
             </form>
 
             <div class="query-results">
-              <article class="panel strategy-panel reveal" aria-labelledby="strategy-title">
+              <article class="panel strategy-panel strategy-desk reveal" data-strategy-desk aria-labelledby="strategy-title">
                 <div class="strategy-heading">
-                  <div><p class="eyebrow">本轮检索路线</p><h3 id="strategy-title" data-strategy-headline>研究画像正在生成取舍策略</h3></div>
+                  <div><p class="eyebrow">研究策略决策台</p><h3 id="strategy-title" data-strategy-headline>三条路线，先看清取舍再确认</h3></div>
                   <span class="status-pill" data-strategy-language>中英并行</span>
                 </div>
-                <p class="strategy-tradeoff" data-strategy-tradeoff>保存研究边界后，文径会解释本轮先找什么、暂缓什么，以及为什么。</p>
+                <p class="strategy-tradeoff" data-strategy-tradeoff>研究阶段、交付目标、时间、语种缺口、题录进度和真实反馈共同改变方案顺序。</p>
+                <div class="strategy-context" data-strategy-context aria-label="本轮决策依据"></div>
                 <div class="strategy-weights" data-strategy-weights aria-label="证据优先级权重"></div>
-                <ol class="search-plan" data-search-plan></ol>
+                <div class="strategy-choice-heading"><div><span>选择一条主路线</span><p>每条方案都明确本轮收益、必须接受的代价与适用依据。</p></div><small>共 3 条</small></div>
+                <div class="strategy-candidates" data-strategy-candidates role="radiogroup" aria-label="研究策略候选"></div>
+
+                <section class="strategy-confirmation" aria-labelledby="strategy-confirm-title">
+                  <div class="strategy-selected-copy"><p>当前选择</p><h4 id="strategy-confirm-title" data-strategy-selected>等待选择</h4><span data-strategy-selected-summary>选择方案后查看第一步行动。</span></div>
+                  <label class="strategy-tradeoff-accept"><input type="checkbox" data-strategy-accept><span><b>我理解并接受这条路线的取舍</b><small data-strategy-accepted-copy>确认后将生成可追溯的 V1；后续反馈不会覆盖它。</small></span></label>
+                  <div class="strategy-actions">
+                    <button class="button button-primary" type="button" data-confirm-strategy disabled>人工确认并生成 V1</button>
+                    <button class="button button-secondary" type="button" data-export="strategy" data-strategy-export disabled><svg><use href="#i-download"/></svg>导出已确认策略</button>
+                  </div>
+                  <p class="strategy-status" data-strategy-status aria-live="polite">请先选择方案并确认取舍。</p>
+                </section>
+
+                <section class="strategy-proposal" data-strategy-proposal aria-labelledby="strategy-proposal-title" hidden>
+                  <div><p class="eyebrow">下一版本提案</p><h4 id="strategy-proposal-title" data-strategy-proposal-title>V2 · 等待人工确认</h4></div>
+                  <p data-strategy-proposal-copy>新反馈已经改变决策依据；V1 保持不变。</p>
+                  <p class="strategy-proposal-note" data-strategy-proposal-note hidden></p>
+                  <ul data-strategy-diff></ul>
+                </section>
+
+                <div class="strategy-learning-grid">
+                  <form class="strategy-feedback-form" data-strategy-feedback-form>
+                    <div><p class="eyebrow">带回现场反馈</p><h4>让下一版回应真实结果</h4></div>
+                    <div class="field"><label for="strategy-feedback">这一轮最需要修正什么？</label><select id="strategy-feedback" name="signal" required><option value="">选择一项</option><option value="scope-too-broad">研究范围仍然太宽</option><option value="missing-sources">关键来源或语种不足</option><option value="claim-too-strong">结论强于现有证据</option><option value="synthesis-unclear">综合结构还不清楚</option><option value="handoff-hard">别人难以接着工作</option><option value="worked">本轮有效，继续推进</option></select></div>
+                    <div class="field"><label for="strategy-feedback-note">补充一条现场证据</label><textarea id="strategy-feedback-note" name="note" rows="3" maxlength="240" placeholder="例如：英文来源新增 3 篇，但没有出现相反结论。"></textarea></div>
+                    <button class="button button-dark" type="submit" data-submit-strategy-feedback disabled>生成下一版本提案</button>
+                    <small data-strategy-feedback-status>确认第一版后，再用真实反馈推动下一版。</small>
+                  </form>
+                  <section class="strategy-history" aria-labelledby="strategy-history-title">
+                    <div><p class="eyebrow">决策版本</p><h4 id="strategy-history-title">保留每一次人工确认</h4></div>
+                    <ol data-strategy-history></ol>
+                  </section>
+                </div>
+
+                <section class="strategy-route" aria-labelledby="strategy-route-title"><div><p class="eyebrow">所选路线</p><h4 id="strategy-route-title">把取舍落到下一步</h4></div><ol class="search-plan" data-search-plan></ol></section>
               </article>
               <article class="panel query-card reveal"><div class="query-card-head"><div><span>CN</span><strong>中文综合检索式</strong></div><button class="icon-button" type="button" data-copy-query="cn" aria-label="复制中文检索式"><svg><use href="#i-copy"/></svg></button></div><pre data-query-output="cn"></pre><div class="source-tags"><span>知网</span><span>万方</span><span>国家哲学社会科学文献中心</span></div></article>
               <article class="panel query-card reveal"><div class="query-card-head"><div><span>EN</span><strong>English Boolean Query</strong></div><button class="icon-button" type="button" data-copy-query="en" aria-label="复制英文检索式"><svg><use href="#i-copy"/></svg></button></div><pre data-query-output="en"></pre><div class="source-tags"><span>Web of Science</span><span>Scopus</span><span>Crossref</span><span>OpenAlex</span></div></article>
@@ -368,6 +403,7 @@
           <div class="delivery-grid">
             <article class="export-card reveal"><span><svg><use href="#i-file"/></svg></span><div><h3>文献目录 CSV</h3><p>适合在 Excel 中继续筛选、补充和提交。</p><small data-csv-status>包含 0 条记录</small></div><button class="button button-dark" type="button" data-export="csv"><svg><use href="#i-download"/></svg>导出 CSV</button></article>
             <article class="export-card reveal"><span><svg><use href="#i-package"/></svg></span><div><h3>完整项目备份</h3><p>保存研究边界、检索式、文献与检查状态。</p><small>可再次导入当前工作台</small></div><button class="button button-dark" type="button" data-export="json"><svg><use href="#i-download"/></svg>导出 JSON</button></article>
+            <article class="export-card reveal"><span><svg><use href="#i-scope"/></svg></span><div><h3>研究策略版本</h3><p>保留每次人工确认、真实反馈、收益、代价与事实差异。</p><small data-strategy-export-status>确认策略后可导出</small></div><button class="button button-dark" type="button" data-export="strategy" data-strategy-export disabled><svg><use href="#i-download"/></svg>导出策略</button></article>
             <article class="export-card reveal"><span><svg><use href="#i-filter"/></svg></span><div><h3>证据综合 Markdown</h3><p>汇总筛选统计、纳入矩阵、排除理由与字段分布提示。</p><small>依据人工录入字段生成，不构成正式综述结论</small></div><button class="button button-dark" type="button" data-export="synthesis"><svg><use href="#i-download"/></svg>导出 Markdown</button></article>
             <article class="export-card reveal"><span><svg><use href="#i-check"/></svg></span><div><h3>质量检查报告</h3><p>汇总完成度、重复项、缺失字段和终检结果。</p><small data-report-status>等待生成</small></div><button class="button button-dark" type="button" data-export="report"><svg><use href="#i-download"/></svg>导出报告</button></article>
             <article class="export-card reveal"><span><svg><use href="#i-library"/></svg></span><div><h3>BibTeX 引用库</h3><p>将已录入题录转为可导入 Zotero、LaTeX 的引用格式。</p><small>保留 DOI、链接、关键词与摘要</small></div><button class="button button-dark" type="button" data-export="bibtex"><svg><use href="#i-download"/></svg>导出 BibTeX</button></article>
