@@ -18,6 +18,7 @@
   var issueFilter = 'all';
   var dirtyForms = new Set();
   var screeningSaveTimer = null;
+  var renderingScreening = false;
   var dialogReturnFocus = null;
   var storyProjectId = '';
   var activeStoryChapterId = '';
@@ -569,6 +570,9 @@
   }
 
   function renderScreening() {
+    if (renderingScreening) return;
+    renderingScreening = true;
+    try {
     var official = formalRecords();
     var summary = Synthesis.summarizeScreening(official);
     $('[data-screen-pending]').textContent = summary.pending;
@@ -606,6 +610,9 @@
     body.hidden = records.length === 0;
     $('[data-screening-visible]').textContent = '显示 ' + records.length + ' / ' + official.length + ' 篇';
     renderGapSummary();
+    } finally {
+      renderingScreening = false;
+    }
   }
 
   function renderQuality() {

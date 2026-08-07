@@ -132,6 +132,8 @@ test('integrates the workspace between library and quality while preserving exis
     assert.match(script, new RegExp(field));
   });
   assert.match(script, /renderScreening/);
+  assert.match(script, /if \(renderingScreening\) return/);
+  assert.match(script, /finally \{\s*renderingScreening = false/);
   assert.match(script, /data-screen-field/);
   assert.match(script, /buildMarkdownSynthesis/);
   assert.match(script, /JSON\.stringify\(snapshot, null, 2\)/);
