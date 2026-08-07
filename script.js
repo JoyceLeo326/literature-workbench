@@ -75,6 +75,7 @@
       normalized.projects = normalized.projects.map(function (project) {
         project.records = normalizeRecordList(project.records);
         project.searchLogs = Array.isArray(project.searchLogs) ? project.searchLogs.map(normalizeSearchLog) : [];
+        project.strategyDecisions = Decision.normalizeDecisionHistory(project.strategyDecisions);
         return project;
       });
       return normalized;
@@ -121,6 +122,7 @@
   }
 
   function saveState(message) {
+    refreshStrategyProposalState();
     state.updatedAt = nowISO();
     workspace = Workspace.upsertActiveProject(workspace, state);
     localStorage.setItem(scopedWorkspaceKey(), JSON.stringify(workspace));
@@ -277,6 +279,55 @@
     var en = records.filter(function (record) { return record.language === '英文'; }).length;
     var verified = records.filter(function (record) { return record.status === '已核验'; }).length;
     return { total: records.length, cn: cn, en: en, verified: verified };
+  }
+
+  function strategyContext() {
+    return Decision.buildDecisionContext(currentProfile(), state.project, counts(), state.project.reviewFeedback);
+  }
+
+  function strategyHistory() {
+    state.strategyDecisions = Decision.normalizeDecisionHistory(state.strategyDecisions);
+    return state.strategyDecisions;
+  }
+
+  function latestStrategyDecision() {
+    var history = strategyHistory();
+    return history.length ? history[history.length - 1] : null;
+  }
+
+  function selectedStrategy(context) {
+    return Decision.buildStrategyCandidates(
+      context.profile,
+      context.project,
+      context.counts,
+      context.feedback,
+      { now: new Date() }
+    ).filter(function (candidate) { return candidate.id === state.strategyChoiceId; })[0] || null;
+  }
+
+  function refreshStrategyProposalState() {
+    var history = strategyHistory();
+    var previous = history.length ? history[history.length - 1] : null;
+    if (!previous) {
+      state.strategyProposal = null;
+      return null;
+    }
+    var existing = state.strategyProposal && typeof state.strategyProposal === 'object' ? state.strategyProposal : null;
+    var proposal = Decision.buildDecisionProposal({
+      previous: previous,
+      context: strategyContext(),
+      candidateId: state.strategyChoiceId,
+      version: previous.version + 1,
+      createdAt: existing && existing.createdAt ? existing.createdAt : new Date().toLocaleString('zh-CN', { hour12: false })
+    });
+    if (proposal && existing && existing.signature === proposal.signature) proposal.createdAt = existing.createdAt;
+    state.strategyProposal = proposal;
+    return proposal;
+  }
+
+  function strategyPlanIsCurrent(context) {
+    var latest = latestStrategyDecision();
+    return Boolean(latest && state.strategyChoiceId && !state.strategyProposal && latest.signature === Decision.decisionSignature(context, state.strategyChoiceId));
   }
 
   function setProgress(selector, value) {
@@ -508,18 +559,197 @@
   }
 
   function renderDecisionStrategy() {
-    var policy = Decision.buildPolicy(currentProfile(), state.project, counts(), state.project.reviewFeedback);
-    var plan = Decision.buildSearchPlan(currentProfile(), state.project, counts(), state.project.reviewFeedback);
-    $('[data-strategy-headline]').textContent = policy.headline;
+    var context = strategyContext();
+    var policy = context.policy;
+    var candidates = Decision.buildStrategyCandidates(context.profile, context.project, context.counts, context.feedback);
+    var selected = candidates.filter(function (candidate) { return candidate.id === state.strategyChoiceId; })[0] || null;
+    var highlighted = selected || candidates[0];
+    var history = strategyHistory();
+    var latest = history.length ? history[history.length - 1] : null;
+    var proposal = refreshStrategyProposalState();
+    var current = strategyPlanIsCurrent(context);
+
+    $('[data-strategy-headline]').textContent = current
+      ? 'V' + latest.version + ' · ' + latest.candidate.label + ' 已确认'
+      : proposal
+        ? 'V' + proposal.version + ' · 新依据等待确认'
+        : '三条路线，先看清取舍再确认';
     $('[data-strategy-language]').textContent = policy.languageFocus + '优先';
-    $('[data-strategy-tradeoff]').textContent = policy.tradeoff + ' 本轮反馈：' + policy.feedbackCopy + '。';
+    $('[data-strategy-tradeoff]').textContent = highlighted.summary + ' 本轮依据：' + policy.feedbackCopy + '。';
+    var contextLines = Experience.profileLines(context.profile).concat([
+      context.deadline.label,
+      '中文 ' + context.counts.cn + '/' + context.project.cnTarget,
+      '英文 ' + context.counts.en + '/' + context.project.enTarget,
+      '已核验 ' + context.counts.verified + '/' + context.counts.total
+    ]);
+    if (context.feedback.note) contextLines.push('现场补充：' + context.feedback.note);
+    $('[data-strategy-context]').innerHTML = contextLines.map(function (line) { return '<span>' + escapeHTML(line) + '</span>'; }).join('');
     var weightLabels = { relevance: '边界相关', traceability: '来源追溯', completeness: '字段完整', recency: '时间新近', contrast: '反证分歧' };
     $('[data-strategy-weights]').innerHTML = Object.keys(weightLabels).map(function (key) {
       return '<div><span>' + weightLabels[key] + '</span><strong>' + policy.weights[key] + '%</strong><i><b style="width:' + policy.weights[key] + '%"></b></i></div>';
     }).join('');
-    $('[data-search-plan]').innerHTML = plan.map(function (item) {
+
+    $('[data-strategy-candidates]').innerHTML = candidates.map(function (candidate) {
+      var isSelected = selected && selected.id === candidate.id;
+      return '<button class="strategy-candidate' + (isSelected ? ' is-selected' : '') + '" type="button" role="radio" aria-checked="' + Boolean(isSelected) + '" data-strategy-choice="' + candidate.id + '">' +
+        '<span class="strategy-candidate-rank"><b>0' + candidate.rank + '</b><small>' + (candidate.rank === 1 ? '画像首选' : '备选路线') + '</small></span>' +
+        '<span class="strategy-candidate-title"><strong>' + escapeHTML(candidate.label) + '</strong><em>依据分 ' + candidate.score + '</em></span>' +
+        '<span class="strategy-candidate-summary">' + escapeHTML(candidate.summary) + '</span>' +
+        '<span class="strategy-consequence gain"><small>本轮收益</small><b>' + escapeHTML(candidate.gain) + '</b></span>' +
+        '<span class="strategy-consequence cost"><small>必须接受</small><b>' + escapeHTML(candidate.tradeoff) + '</b></span>' +
+        '<span class="strategy-consequence fit"><small>适用依据</small><b>' + escapeHTML(candidate.basis) + '</b></span>' +
+        '<span class="strategy-candidate-action"><small>第一步</small><b>' + escapeHTML(candidate.firstAction) + '</b></span>' +
+        '<span class="strategy-choice-mark">' + (isSelected ? '已选择' : '选择这条路线') + '</span></button>';
+    }).join('');
+
+    $('[data-strategy-selected]').textContent = selected ? selected.label + ' · ' + selected.title : '等待你的选择';
+    $('[data-strategy-selected-summary]').textContent = selected ? selected.firstAction : '比较三条路线后，选择一条作为本轮主策略。';
+    $('[data-strategy-accepted-copy]').textContent = selected
+      ? '你将接受：' + selected.tradeoff
+      : '确认后将生成可追溯版本；后续反馈不会覆盖旧版本。';
+    $('[data-strategy-accept]').checked = false;
+    $('[data-strategy-accept]').disabled = !selected || current;
+    $('[data-confirm-strategy]').disabled = true;
+    $('[data-confirm-strategy]').textContent = current
+      ? 'V' + latest.version + ' 已人工确认'
+      : latest ? '人工确认并生成 V' + (latest.version + 1) : '人工确认并生成 V1';
+    $('[data-strategy-status]').textContent = current
+      ? 'V' + latest.version + ' 已确认，可导出当前策略。'
+      : proposal
+        ? 'V' + proposal.version + ' 仍是提案；重新选择、接受取舍并确认后才会成为当前策略。'
+        : selected ? '已选择方案，请阅读并接受它的取舍。' : '请从三条方案中选择本轮主路线。';
+
+    $$('[data-strategy-export]').forEach(function (button) { button.disabled = !current; });
+    $('[data-strategy-export-status]').textContent = current
+      ? '当前为 V' + latest.version + ' · ' + latest.candidate.label
+      : proposal ? 'V' + proposal.version + ' 待确认，当前策略暂不可导出' : '确认策略后可导出';
+
+    var proposalPanel = $('[data-strategy-proposal]');
+    proposalPanel.hidden = !proposal;
+    if (proposal) {
+      $('[data-strategy-proposal-title]').textContent = 'V' + proposal.version + ' · 等待人工确认';
+      $('[data-strategy-proposal-copy]').textContent = '建议路线为「' + proposal.candidateLabel + '」。V' + proposal.baseVersion + ' 完整保留，以下只列真实发生的变化。';
+      $('[data-strategy-proposal-note]').hidden = !proposal.feedbackNote;
+      $('[data-strategy-proposal-note]').textContent = proposal.feedbackNote ? '现场补充：' + proposal.feedbackNote : '';
+      $('[data-strategy-diff]').innerHTML = (proposal.changes.length ? proposal.changes : ['当前选择发生变化，研究画像本身未改变。']).map(function (change) {
+        return '<li>' + escapeHTML(change) + '</li>';
+      }).join('');
+    } else {
+      $('[data-strategy-proposal-note]').hidden = true;
+      $('[data-strategy-proposal-note]').textContent = '';
+      $('[data-strategy-diff]').innerHTML = '';
+    }
+
+    $('[data-strategy-history]').innerHTML = history.length ? history.slice().reverse().map(function (decision) {
+      var changes = decision.changes.length ? '<ul>' + decision.changes.map(function (change) { return '<li>' + escapeHTML(change) + '</li>'; }).join('') + '</ul>' : '<p>首个确认版本。</p>';
+      return '<li><div><span>V' + decision.version + '</span><strong>' + escapeHTML(decision.candidate.label) + '</strong><time>' + escapeHTML(decision.confirmedAt) + '</time></div>' +
+        '<p><b>收益</b>' + escapeHTML(decision.candidate.gain) + '</p><p><b>代价</b>' + escapeHTML(decision.candidate.tradeoff) + '</p>' +
+        (decision.context.feedback.note ? '<p><b>现场补充</b>' + escapeHTML(decision.context.feedback.note) + '</p>' : '') + changes + '</li>';
+    }).join('') : '<li class="strategy-history-empty"><strong>尚无确认版本</strong><p>选择方案、接受取舍并确认后，V1 会出现在这里。</p></li>';
+
+    var feedbackForm = $('[data-strategy-feedback-form]');
+    var review = Story.normalizeFeedback(state.project.reviewFeedback);
+    if (feedbackForm && !feedbackForm.contains(document.activeElement)) {
+      feedbackForm.elements.signal.value = review.signal;
+      feedbackForm.elements.note.value = review.note;
+    }
+    $('[data-submit-strategy-feedback]').disabled = !history.length;
+    $('[data-strategy-feedback-status]').textContent = history.length
+      ? review.signal ? '已记录「' + Story.SIGNALS[review.signal].label + '」，提交可刷新 V' + (latest.version + 1) + ' 提案。' : '提交真实结果后，先生成下一版本提案，不覆盖 V' + latest.version + '。'
+      : '确认第一版后，再用真实反馈推动下一版。';
+
+    var route = highlighted.route.map(function (title, index) {
+      var copies = index === 0 ? highlighted.firstAction : index === 2 ? highlighted.reviewPrompt : highlighted.fit;
+      return { index: '0' + (index + 1), title: title, copy: copies, meta: index === 2 ? '复盘后带回真实反馈' : highlighted.label };
+    });
+    $('[data-search-plan]').innerHTML = route.map(function (item) {
       return '<li><span>' + item.index + '</span><div><strong>' + escapeHTML(item.title) + '</strong><p>' + escapeHTML(item.copy) + '</p><small>' + escapeHTML(item.meta) + '</small></div></li>';
     }).join('');
+  }
+
+  function chooseStrategy(candidateId) {
+    if (['focus', 'coverage', 'contrast'].indexOf(candidateId) < 0) return;
+    state.strategyChoiceId = candidateId;
+    refreshStrategyProposalState();
+    saveState('策略选择已保存');
+    renderDecisionStrategy();
+  }
+
+  function confirmStrategyDecision() {
+    var context = strategyContext();
+    var candidate = selectedStrategy(context);
+    var accept = $('[data-strategy-accept]');
+    if (!candidate) {
+      toast('请先选择一条研究策略。', 'error');
+      return;
+    }
+    if (!accept.checked) {
+      accept.focus();
+      toast('请先确认你理解并接受这条路线的取舍。', 'error');
+      return;
+    }
+    var history = strategyHistory();
+    var previous = history.length ? history[history.length - 1] : null;
+    if (previous && previous.signature === Decision.decisionSignature(context, candidate.id)) {
+      toast('当前策略已经确认，无需重复生成版本。');
+      renderDecisionStrategy();
+      return;
+    }
+    var decision = Decision.createDecision({
+      context: context,
+      candidateId: candidate.id,
+      previous: previous,
+      version: previous ? previous.version + 1 : 1,
+      confirmedAt: new Date().toLocaleString('zh-CN', { hour12: false })
+    });
+    state.strategyDecisions = history.concat(decision);
+    state.strategyProposal = null;
+    saveState('V' + decision.version + ' 研究策略已确认');
+    renderDecisionStrategy();
+    toast('V' + decision.version + ' 已确认，旧版本完整保留');
+  }
+
+  function applyResearchFeedback(form, fromDecisionDesk) {
+    var data = formDataObject(form);
+    var review = Story.normalizeFeedback({ signal: data.signal, note: data.note, updatedAt: nowISO() });
+    if (!review.signal) {
+      form.elements.signal.focus();
+      toast('请选择最接近本轮情况的一项。', 'error');
+      return false;
+    }
+    var previousReview = Story.normalizeFeedback(state.project.reviewFeedback);
+    var history = strategyHistory();
+    if (history.length && !Decision.decisionFeedbackChanged(previousReview, review)) {
+      toast(state.strategyProposal
+        ? '反馈没有变化，V' + state.strategyProposal.version + ' 提案仍等待确认'
+        : '反馈没有变化，当前 V' + latestStrategyDecision().version + ' 保持有效');
+      return false;
+    }
+    state.project.reviewFeedback = review;
+    if (history.length) state.strategyChoiceId = '';
+    var move = Story.nextMove(review);
+    storyProjectId = state.id;
+    activeStoryChapterId = move.chapter;
+    activeStorySceneId = move.sceneId;
+    saveState('研究反馈已保存');
+    renderAll();
+    if (history.length && state.strategyProposal) {
+      toast('真实反馈已生成 V' + state.strategyProposal.version + ' 提案，请重新选择并确认');
+    } else if (history.length) {
+      toast('反馈已记录，但没有形成新的策略差异，当前版本保持不变');
+    } else {
+      toast(fromDecisionDesk ? '反馈已记录，请先确认第一版策略' : '下一轮路径已根据反馈更新');
+    }
+    return true;
+  }
+
+  function submitStrategyFeedback(event) {
+    event.preventDefault();
+    if (!strategyHistory().length) {
+      toast('请先确认 V1，再用真实反馈推动下一版。', 'error');
+      return;
+    }
+    applyResearchFeedback(event.currentTarget, true);
   }
 
   function renderPriorityQueue() {
@@ -1179,12 +1409,27 @@
     downloadFile('文径-完整备份-' + localDateStamp() + '.json', JSON.stringify(snapshot, null, 2), 'application/json;charset=utf-8');
     toast('完整项目备份已导出');
   }
+  function exportStrategy() {
+    var context = strategyContext();
+    refreshStrategyProposalState();
+    if (!strategyPlanIsCurrent(context)) {
+      toast('当前策略仍有待确认变化，请先完成人工确认。', 'error');
+      renderDecisionStrategy();
+      return;
+    }
+    var latest = latestStrategyDecision();
+    var content = ['# 文径｜研究策略决策档案', '', Decision.buildDecisionArchive(strategyHistory(), null)].join('\n');
+    downloadFile('文径-研究策略-V' + latest.version + '-' + localDateStamp() + '.md', content, 'text/markdown;charset=utf-8');
+    toast('V' + latest.version + ' 研究策略档案已导出');
+  }
   function exportSynthesis() {
     var content = [
       '# 研究交付画像',
       '',
       Experience.profileLines(currentProfile()).map(function (line) { return '- ' + line; }).join('\n'),
       Story.feedbackLines(state.project.reviewFeedback).map(function (line) { return '- ' + line; }).join('\n'),
+      '',
+      Decision.buildDecisionArchive(strategyHistory(), state.strategyProposal),
       '',
       Synthesis.buildMarkdownSynthesis(state.project, formalRecords())
     ].join('\n');
@@ -1241,6 +1486,7 @@
     lines.push('', '四、检索留痕');
     if (!state.searchLogs.length) lines.push('- 尚无检索记录。');
     else state.searchLogs.forEach(function (log) { lines.push('- ' + formatTime(log.createdAt) + '｜' + log.platform + '｜' + log.note); });
+    lines.push('', Decision.buildDecisionArchive(strategyHistory(), state.strategyProposal));
     return lines.join('\n');
   }
   function exportReport() {
@@ -1253,11 +1499,18 @@
     else if (type === 'json') exportJSON();
     else if (type === 'bibtex') exportBibTeX();
     else if (type === 'synthesis') exportSynthesis();
+    else if (type === 'strategy') exportStrategy();
     else exportReport();
   }
 
   function requestExport(type) {
-    var labels = { csv: '文献目录 CSV', json: '完整项目备份 JSON', bibtex: 'BibTeX 引用库', synthesis: '证据综合 Markdown', report: '质量检查报告' };
+    var labels = { csv: '文献目录 CSV', json: '完整项目备份 JSON', bibtex: 'BibTeX 引用库', synthesis: '证据综合 Markdown', strategy: '研究策略版本 Markdown', report: '质量检查报告' };
+    refreshStrategyProposalState();
+    if (type === 'strategy' && !strategyPlanIsCurrent(strategyContext())) {
+      toast('新依据或新选择仍待人工确认，当前策略暂不可导出。', 'error');
+      renderDecisionStrategy();
+      return;
+    }
     var c = counts();
     var issues = analyzeQuality();
     var screening = Synthesis.summarizeScreening(formalRecords());
@@ -1267,8 +1520,8 @@
       '<p><b>' + c.total + '</b><small>题录记录</small></p>' +
       '<p><b>' + screening.included + '</b><small>人工纳入</small></p>' +
       '<p><b>' + c.verified + '</b><small>原文核验</small></p>' +
-      '<p><b>' + issues.length + '</b><small>质量问题</small></p>' +
-      '</div><p class="export-check-copy">终检清单已确认 ' + checked + ' / 4 项。文件会保留当前研究画像、上一轮反馈和判断留痕。</p>';
+      '<p><b>' + (pendingExportType === 'strategy' ? 'V' + latestStrategyDecision().version : issues.length) + '</b><small>' + (pendingExportType === 'strategy' ? '确认版本' : '质量问题') + '</small></p>' +
+      '</div><p class="export-check-copy">终检清单已确认 ' + checked + ' / 4 项。文件会保留研究画像、真实反馈、人工选择、收益、代价和版本差异。</p>';
     $('[data-export-human-check]').checked = false;
     $('[data-confirm-export]').disabled = true;
     openDialog('[data-export-confirm-modal]', '[data-export-human-check]');
@@ -1481,6 +1734,9 @@
       }
       var storyAction = event.target.closest('[data-story-next-action]');
       if (storyAction) { showView(storyAction.getAttribute('data-target-view')); return; }
+      var strategyChoice = event.target.closest('[data-strategy-choice]');
+      if (strategyChoice) { chooseStrategy(strategyChoice.getAttribute('data-strategy-choice')); return; }
+      if (event.target.closest('[data-confirm-strategy]')) { confirmStrategyDecision(); return; }
       if (event.target.closest('[data-menu]')) { $('#sidebar').classList.toggle('is-open'); return; }
       if (event.target.closest('[data-create-project]')) { openProjectDialog(); return; }
       if (event.target.closest('[data-auth-login]')) { openAuthDialog('login'); return; }
@@ -1549,22 +1805,9 @@
     $('[data-project-switcher]').addEventListener('change', function (event) { switchProject(event.target.value); });
     $('[data-story-feedback-form]').addEventListener('submit', function (event) {
       event.preventDefault();
-      var data = formDataObject(event.currentTarget);
-      var review = Story.normalizeFeedback({ signal: data.signal, note: data.note, updatedAt: nowISO() });
-      if (!review.signal) {
-        event.currentTarget.elements.signal.focus();
-        toast('请选择最接近本轮情况的一项。', 'error');
-        return;
-      }
-      state.project.reviewFeedback = review;
-      var move = Story.nextMove(review);
-      storyProjectId = state.id;
-      activeStoryChapterId = move.chapter;
-      activeStorySceneId = move.sceneId;
-      saveState('研究反馈已保存');
-      renderAll();
-      toast('下一轮路径已根据反馈更新');
+      applyResearchFeedback(event.currentTarget, false);
     });
+    $('[data-strategy-feedback-form]').addEventListener('submit', submitStrategyFeedback);
     $('[data-scope-form]').addEventListener('submit', function (event) {
       event.preventDefault();
       var form = event.currentTarget;
@@ -1605,6 +1848,9 @@
     $('[data-filter-status]').addEventListener('change', renderLibrary);
     $('[data-library-sort]').addEventListener('change', renderLibrary);
     $('[data-export-human-check]').addEventListener('change', function (event) { $('[data-confirm-export]').disabled = !event.target.checked; });
+    $('[data-strategy-accept]').addEventListener('change', function (event) {
+      $('[data-confirm-strategy]').disabled = !event.target.checked || !selectedStrategy(strategyContext());
+    });
     $('[data-screen-search]').addEventListener('input', renderScreening);
     $('[data-screen-filter-decision]').addEventListener('change', renderScreening);
     $('[data-screen-filter-grade]').addEventListener('change', renderScreening);
