@@ -35,7 +35,6 @@ body {
   font-family: "Avenir Next", "PingFang SC", "Noto Sans CJK SC", sans-serif;
   font-size: 15px;
   line-height: 1.55;
-  min-width: 320px;
 }
 button, input, textarea, select { font: inherit; }
 button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
@@ -90,7 +89,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .create-project-button { flex: 0 0 auto; }
 .account-entry { display: flex; align-items: center; gap: 7px; padding-left: 2px; }
-.account-link { min-height: 44px; padding: 0 8px; border: 0; background: transparent; color: var(--green-700); font-size: 12px; font-weight: 800; cursor: pointer; }
+.account-link { min-width: 44px; min-height: 44px; padding: 0 8px; border: 0; background: transparent; color: var(--green-700); font-size: 12px; font-weight: 800; cursor: pointer; }
 .account-link:hover { text-decoration: underline; text-underline-offset: 4px; }
 .register-suffix { display: none; }
 .account-register { min-height: 44px; padding: 0 12px; }
@@ -124,7 +123,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .button-dark { background: var(--ink); color: #fff; }
 .button-dark:hover { background: #27312d; }
 .button-danger { background: var(--red); color: #fff; }
-.button.small { min-height: 36px; padding: 0 12px; font-size: 12px; }
+.button.small { min-height: 44px; padding: 0 12px; font-size: 12px; }
 .button.full { width: 100%; }
 .icon-button { width: 44px; height: 44px; padding: 0; display: inline-grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.6); cursor: pointer; transition: background 150ms ease, transform 100ms ease, color 150ms ease; }
 .icon-button:hover { background: #fff; color: var(--green-700); }
