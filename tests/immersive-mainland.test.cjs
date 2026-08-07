@@ -30,6 +30,14 @@ test('ships an immersive profile surface and a mainland-first Pages artifact', (
   assert.match(html, /rel="canonical" href="https:\/\/joyceleo326\.github\.io\/literature-workbench\/"/);
   assert.match(html, /property="og:title"/);
   assert.match(html, /name="twitter:card"/);
+  assert.match(html, /http-equiv="Content-Security-Policy"[^>]*connect-src 'self'/);
+  assert.match(html, /http-equiv="Content-Security-Policy"[^>]*script-src 'self'/);
+  assert.match(html, /http-equiv="Content-Security-Policy"[^>]*worker-src 'self' blob:/);
+  const headers = vercel.headers.flatMap((entry) => entry.headers).map((header) => `${header.key}: ${header.value}`).join('\n');
+  assert.match(headers, /Content-Security-Policy:.*connect-src 'self'/);
+  assert.match(headers, /Content-Security-Policy:.*script-src 'self'/);
+  assert.match(headers, /Content-Security-Policy:.*frame-ancestors 'none'/);
+  assert.match(headers, /Content-Security-Policy:.*worker-src 'self' blob:/);
   assert.doesNotMatch(`${html}\n${script}`, /零成本|0 成本|无需登录|评委|MVP|教学演示/);
   assert.doesNotMatch(`${html}\n${script}`, /fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com|api\.crossref\.org|api\.openalex\.org|\bfetch\s*\(/);
   assert.doesNotMatch(css, /body\s*\{[^}]*\bmin-width\s*:\s*320px\b/s, 'a 320px viewport must not inherit a fixed body width in addition to its scrollbar');
