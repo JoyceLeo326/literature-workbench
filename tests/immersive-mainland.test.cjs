@@ -18,6 +18,7 @@ test('ships an immersive profile surface and a mainland-first Pages artifact', (
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const script = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+  const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
   const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'deploy-pages.yml'), 'utf8');
   for (const marker of ['name="researchStage"', 'name="deliveryGoal"', 'name="weeklyHours"', 'data-research-journey']) {
     assert.match(html, new RegExp(marker));
@@ -34,4 +35,5 @@ test('ships an immersive profile surface and a mainland-first Pages artifact', (
   assert.doesNotMatch(css, /body\s*\{[^}]*\bmin-width\s*:\s*320px\b/s, 'a 320px viewport must not inherit a fixed body width in addition to its scrollbar');
   assert.match(css, /\.account-link\s*\{[^}]*\bmin-width\s*:\s*44px\b/s, 'the compact account entry must remain a full touch target');
   assert.match(css, /\.button\.small\s*\{[^}]*\bmin-height\s*:\s*44px\b/s, 'compact actions must remain full touch targets');
+  assert.notEqual(vercel.cleanUrls, true, 'the production root must resolve index.html instead of redirecting it to a missing clean URL');
 });
