@@ -6,7 +6,8 @@
   'use strict';
 
   var WORKSPACE_VERSION = 1;
-  var PROJECT_VERSION = 4;
+  var PROJECT_VERSION = 5;
+  var STRATEGY_IDS = ['focus', 'coverage', 'contrast'];
 
   function timestamp(value) {
     return value || new Date().toISOString();
@@ -20,6 +21,10 @@
   function safeId(value, prefix) {
     var candidate = String(value || '');
     return /^[A-Za-z0-9_-]{1,128}$/.test(candidate) ? candidate : id(prefix);
+  }
+
+  function plainClone(value, fallback) {
+    try { return JSON.parse(JSON.stringify(value)); } catch (error) { return fallback; }
   }
 
   function createProjectState(options) {
@@ -54,6 +59,9 @@
       queries: { cn: '', en: '' },
       searchLogs: [],
       records: [],
+      strategyDecisions: [],
+      strategyChoiceId: '',
+      strategyProposal: null,
       finalChecks: { quantity: false, mapping: false, metadata: false, trace: false },
       createdAt: now,
       updatedAt: now
@@ -72,6 +80,13 @@
       queries: Object.assign(base.queries, incoming.queries || {}),
       searchLogs: Array.isArray(incoming.searchLogs) ? incoming.searchLogs.slice() : [],
       records: Array.isArray(incoming.records) ? incoming.records.slice() : [],
+      strategyDecisions: Array.isArray(incoming.strategyDecisions)
+        ? plainClone(incoming.strategyDecisions.slice(-12), [])
+        : [],
+      strategyChoiceId: STRATEGY_IDS.indexOf(incoming.strategyChoiceId) >= 0 ? incoming.strategyChoiceId : '',
+      strategyProposal: incoming.strategyProposal && typeof incoming.strategyProposal === 'object' && !Array.isArray(incoming.strategyProposal)
+        ? plainClone(incoming.strategyProposal, null)
+        : null,
       finalChecks: Object.assign(base.finalChecks, incoming.finalChecks || {}),
       createdAt: incoming.createdAt || incoming.updatedAt || base.createdAt,
       updatedAt: incoming.updatedAt || base.updatedAt

@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const Decision = require('../decision-core.js');
+const Workspace = require('../workspace-core.js');
 
 const NOW = '2026-08-07T08:00:00.000Z';
 const baseProject = {
@@ -120,4 +121,38 @@ test('an unchanged context and choice does not invent a new proposal', () => {
   const v1 = Decision.createDecision({ context, candidateId: 'focus', confirmedAt: '2026-08-07 16:00' });
   assert.equal(Decision.buildDecisionProposal({ previous: v1, context, candidateId: 'focus' }), null);
   assert.deepEqual(Decision.diffDecisionContexts(context, context), []);
+});
+
+test('workspace normalization preserves confirmed versions, selection and a pending proposal', () => {
+  const project = Workspace.createProjectState({ now: NOW });
+  const context = Decision.buildDecisionContext({}, baseProject, {}, {}, { now: NOW });
+  const v1 = Decision.createDecision({ context, candidateId: 'focus', confirmedAt: '2026-08-07 16:00' });
+  const nextContext = Decision.buildDecisionContext(
+    {},
+    baseProject,
+    {},
+    { signal: 'missing-sources', note: '英文证据不足' },
+    { now: NOW }
+  );
+  const proposal = Decision.buildDecisionProposal({ previous: v1, context: nextContext, candidateId: 'coverage' });
+  project.strategyDecisions = [v1];
+  project.strategyChoiceId = 'coverage';
+  project.strategyProposal = proposal;
+
+  const restored = Workspace.normalizeProject(JSON.parse(JSON.stringify(project)), NOW);
+  assert.equal(Workspace.PROJECT_VERSION, 5);
+  assert.equal(restored.strategyDecisions.length, 1);
+  assert.equal(restored.strategyDecisions[0].candidate.id, 'focus');
+  assert.equal(restored.strategyChoiceId, 'coverage');
+  assert.equal(restored.strategyProposal.version, 2);
+  assert.ok(restored.strategyProposal.changes.some((line) => line.includes('真实反馈')));
+
+  const invalid = Workspace.normalizeProject({
+    strategyChoiceId: 'not-a-strategy',
+    strategyDecisions: 'not-an-array',
+    strategyProposal: '<script>'
+  }, NOW);
+  assert.equal(invalid.strategyChoiceId, '');
+  assert.deepEqual(invalid.strategyDecisions, []);
+  assert.equal(invalid.strategyProposal, null);
 });
