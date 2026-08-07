@@ -184,10 +184,358 @@
     });
   }
 
+  function isoDate(value) {
+    var source = text(value);
+    return /^\d{4}-\d{2}-\d{2}$/.test(source) ? source : '';
+  }
+
+  function decisionProject(project) {
+    var source = project && typeof project === 'object' ? project : {};
+    return {
+      title: text(source.title).slice(0, 100),
+      topic: text(source.topic).slice(0, 600),
+      deadline: isoDate(source.deadline),
+      years: text(source.years).slice(0, 80),
+      cnTarget: Math.max(0, Math.round(number(source.cnTarget, 0))),
+      enTarget: Math.max(0, Math.round(number(source.enTarget, 0))),
+      include: text(source.include).slice(0, 800),
+      exclude: text(source.exclude).slice(0, 800)
+    };
+  }
+
+  function decisionCounts(counts) {
+    var source = counts && typeof counts === 'object' ? counts : {};
+    return {
+      total: Math.max(0, Math.round(number(source.total, 0))),
+      cn: Math.max(0, Math.round(number(source.cn, 0))),
+      en: Math.max(0, Math.round(number(source.en, 0))),
+      verified: Math.max(0, Math.round(number(source.verified, 0)))
+    };
+  }
+
+  function deadlineState(deadline, nowValue) {
+    var date = isoDate(deadline);
+    if (!date) return { days: null, band: '未设置', label: '交付时间未设置' };
+    var now = nowValue ? new Date(nowValue) : new Date();
+    var target = new Date(date + 'T00:00:00');
+    if (Number.isNaN(now.getTime()) || Number.isNaN(target.getTime())) return { days: null, band: '未设置', label: '交付时间未设置' };
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var days = Math.ceil((target.getTime() - today.getTime()) / 86400000);
+    if (days < 0) return { days: days, band: '已到期', label: '交付时间已到' };
+    if (days <= 7) return { days: days, band: '一周内', label: '距交付 ' + days + ' 天' };
+    if (days <= 21) return { days: days, band: '三周内', label: '距交付 ' + days + ' 天' };
+    return { days: days, band: '三周以上', label: '距交付 ' + days + ' 天' };
+  }
+
+  function buildDecisionContext(profileInput, projectInput, countsInput, feedbackInput, options) {
+    var profile = profileOf(profileInput);
+    var project = decisionProject(projectInput);
+    var counts = decisionCounts(countsInput);
+    var feedback = feedbackOf(feedbackInput);
+    var deadline = deadlineState(project.deadline, options && options.now);
+    var policy = buildPolicy(profile, project, counts, feedback);
+    return {
+      profile: profile,
+      project: project,
+      counts: counts,
+      feedback: feedback,
+      deadline: deadline,
+      policy: {
+        weights: Object.assign({}, policy.weights),
+        duration: policy.duration,
+        batchSize: policy.batchSize,
+        languageFocus: policy.languageFocus,
+        headline: policy.headline,
+        feedbackCopy: policy.feedbackCopy
+      }
+    };
+  }
+
+  function candidateScore(id, context) {
+    var profile = context.profile;
+    var feedback = context.feedback.signal;
+    var project = context.project;
+    var counts = context.counts;
+    var cnGap = Math.max(0, project.cnTarget - counts.cn);
+    var enGap = Math.max(0, project.enTarget - counts.en);
+    var largestGap = Math.max(cnGap, enGap);
+    var urgent = context.deadline.band === '一周内' || context.deadline.band === '已到期';
+    if (id === 'focus') {
+      return 58 + (profile.weeklyHours <= 3 ? 18 : profile.weeklyHours <= 8 ? 7 : 0) +
+        (urgent ? 14 : 0) + (profile.deliveryGoal === 'class-report' ? 7 : 0) +
+        (feedback === 'scope-too-broad' ? 30 : 0);
+    }
+    if (id === 'coverage') {
+      return 56 + Math.min(22, largestGap * 2) + (profile.deliveryGoal === 'proposal' ? 8 : 0) +
+        (feedback === 'missing-sources' ? 32 : feedback === 'handoff-hard' ? 12 : 0) +
+        (counts.verified < counts.total ? 5 : 0);
+    }
+    return 55 + (profile.deliveryGoal === 'review' ? 18 : 0) + (profile.researchStage === 'thesis' ? 10 : 0) +
+      (profile.weeklyHours >= 9 ? 8 : 0) +
+      (feedback === 'claim-too-strong' || feedback === 'synthesis-unclear' ? 32 : feedback === 'worked' ? 6 : 0);
+  }
+
+  function strategyDefinitions(context) {
+    var policy = context.policy;
+    var profile = context.profile;
+    var counts = context.counts;
+    var project = context.project;
+    var feedback = context.feedback.signal ? FEEDBACK_LABELS[context.feedback.signal] : '尚未带回真实反馈';
+    var language = policy.languageFocus;
+    var unverified = Math.max(0, counts.total - counts.verified);
+    var goal = GOAL_LABELS[profile.deliveryGoal];
+    var time = context.deadline.label + '，每周可投入 ' + profile.weeklyHours + ' 小时';
+    return [
+      {
+        id: 'focus',
+        label: '边界收束',
+        title: '先让问题变得可回答',
+        summary: '把对象、情境、年份与排除条件压缩成一轮能够完成的检索边界。',
+        gain: '减少无关命中和后续返工，让第一批材料直接服务“' + goal + '”。',
+        tradeoff: '暂缓扩大数据库与相邻主题，边缘材料会留到下一轮再判断。',
+        fit: '适合时间紧、主题仍宽，或反馈指出研究边界尚未收紧的阶段。',
+        basis: time + '；当前任务为' + STAGE_LABELS[profile.researchStage] + '；' + feedback + '。',
+        firstAction: '用 ' + policy.duration + ' 分钟重写一条纳入条件和一条排除条件，再核验 ' + Math.min(3, Math.max(1, policy.batchSize)) + ' 篇锚点来源。',
+        reviewPrompt: '新命中记录中，有多少篇能够直接回答当前问题，而不是只与主题相关？',
+        route: ['重写可回答问题', '锁定纳入与排除', '核验少量锚点']
+      },
+      {
+        id: 'coverage',
+        label: '缺口补证',
+        title: '先补最薄弱的证据来源',
+        summary: '把语种、来源与可追溯字段的缺口变成明确的补证批次。',
+        gain: '优先补齐' + language + '材料与来源线索，降低结论建立在单一来源上的风险。',
+        tradeoff: '本轮不会追求完整综合；新增材料仍需逐篇回到原文核验。',
+        fit: '适合语种目标未达成、可追溯来源不足，或团队需要接续工作的阶段。',
+        basis: language + '缺口优先；当前中文 ' + counts.cn + '/' + project.cnTarget + '、英文 ' + counts.en + '/' + project.enTarget + '；待核验 ' + unverified + ' 篇。',
+        firstAction: '在' + language + '来源中补查 ' + policy.batchSize + ' 篇候选，逐条补齐 DOI、原文链接与检索批次。',
+        reviewPrompt: '新增来源是否改变了当前判断，还是只增加了同类材料的数量？',
+        route: ['定位最大语种缺口', '补查可追溯来源', '回到原文核验']
+      },
+      {
+        id: 'contrast',
+        label: '反证综合',
+        title: '先让相反证据进入同一张表',
+        summary: '围绕争议、限制与无显著结果建立可比较的证据矩阵。',
+        gain: '让结论同时面对支持、限制与反例，更适合形成可复查的综合判断。',
+        tradeoff: '推进速度更慢，并要求补齐研究对象、方法与结论边界等比较字段。',
+        fit: '适合论文或综述阶段、结论可能强于证据，或综合结构仍不清楚的阶段。',
+        basis: goal + '的反证权重为 ' + policy.weights.contrast + '%；已核验 ' + counts.verified + '/' + counts.total + ' 篇；' + feedback + '。',
+        firstAction: '加入相反词、限制词和无显著结果，建立至少 ' + Math.min(4, Math.max(2, Math.ceil(policy.batchSize / 2))) + ' 组可比较证据。',
+        reviewPrompt: '哪些结论只在特定对象、方法或时期成立？',
+        route: ['主动寻找反例', '对齐比较字段', '写清结论边界']
+      }
+    ];
+  }
+
+  function candidatesFromContext(context) {
+    return strategyDefinitions(context).map(function (candidate, index) {
+      return Object.assign({}, candidate, { score: candidateScore(candidate.id, context), stableIndex: index });
+    }).sort(function (left, right) {
+      return right.score - left.score || left.stableIndex - right.stableIndex;
+    }).map(function (candidate, index) {
+      var copy = Object.assign({}, candidate, { rank: index + 1 });
+      delete copy.stableIndex;
+      return copy;
+    });
+  }
+
+  function buildStrategyCandidates(profile, project, counts, feedback, options) {
+    return candidatesFromContext(buildDecisionContext(profile, project, counts, feedback, options));
+  }
+
+  function sameList(left, right) {
+    return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every(function (value, index) { return value === right[index]; });
+  }
+
+  function contextSignature(context) {
+    var value = context || {};
+    return JSON.stringify({
+      profile: value.profile,
+      project: value.project,
+      counts: value.counts,
+      feedback: value.feedback,
+      deadlineBand: value.deadline && value.deadline.band,
+      policy: value.policy
+    });
+  }
+
+  function decisionSignature(context, candidateId) {
+    return contextSignature(context) + '|' + text(candidateId);
+  }
+
+  function diffDecisionContexts(previousInput, nextInput) {
+    var previous = previousInput && previousInput.policy ? previousInput : buildDecisionContext(
+      previousInput && previousInput.profile,
+      previousInput && previousInput.project,
+      previousInput && previousInput.counts,
+      previousInput && previousInput.feedback,
+      previousInput && previousInput.options
+    );
+    var next = nextInput && nextInput.policy ? nextInput : buildDecisionContext(
+      nextInput && nextInput.profile,
+      nextInput && nextInput.project,
+      nextInput && nextInput.counts,
+      nextInput && nextInput.feedback,
+      nextInput && nextInput.options
+    );
+    var changes = [];
+    if (previous.profile.researchStage !== next.profile.researchStage) changes.push('研究阶段从“' + STAGE_LABELS[previous.profile.researchStage] + '”改为“' + STAGE_LABELS[next.profile.researchStage] + '”');
+    if (previous.profile.deliveryGoal !== next.profile.deliveryGoal) changes.push('交付目标从“' + GOAL_LABELS[previous.profile.deliveryGoal] + '”改为“' + GOAL_LABELS[next.profile.deliveryGoal] + '”');
+    if (previous.profile.weeklyHours !== next.profile.weeklyHours) changes.push('每周投入从 ' + previous.profile.weeklyHours + ' 小时改为 ' + next.profile.weeklyHours + ' 小时');
+    if (previous.project.topic !== next.project.topic) changes.push('研究问题已经改写');
+    if (previous.project.deadline !== next.project.deadline) changes.push('交付日期从“' + (previous.project.deadline || '未设置') + '”改为“' + (next.project.deadline || '未设置') + '”');
+    if (previous.project.cnTarget !== next.project.cnTarget || previous.project.enTarget !== next.project.enTarget) changes.push('中英文文献目标已经调整');
+    if (previous.counts.cn !== next.counts.cn || previous.counts.en !== next.counts.en || previous.counts.verified !== next.counts.verified) changes.push('题录与核验进度从中文 ' + previous.counts.cn + '、英文 ' + previous.counts.en + '、已核验 ' + previous.counts.verified + ' 更新为中文 ' + next.counts.cn + '、英文 ' + next.counts.en + '、已核验 ' + next.counts.verified);
+    if (previous.feedback.signal !== next.feedback.signal || previous.feedback.note !== next.feedback.note) changes.push('真实反馈从“' + (previous.policy.feedbackCopy || '尚无上一轮反馈') + '”更新为“' + (next.policy.feedbackCopy || '尚无上一轮反馈') + '”');
+    if (previous.deadline.band !== next.deadline.band) changes.push('交付时间状态从“' + previous.deadline.band + '”进入“' + next.deadline.band + '”');
+    if (previous.policy.languageFocus !== next.policy.languageFocus) changes.push('优先补证语种从“' + previous.policy.languageFocus + '”调整为“' + next.policy.languageFocus + '”');
+    var weightNames = { relevance: '边界相关', traceability: '来源追溯', completeness: '字段完整', recency: '时间新近', contrast: '反证分歧' };
+    Object.keys(weightNames).forEach(function (key) {
+      if (previous.policy.weights[key] !== next.policy.weights[key]) changes.push(weightNames[key] + '权重从 ' + previous.policy.weights[key] + '% 调整为 ' + next.policy.weights[key] + '%');
+    });
+    var previousCandidates = candidatesFromContext(previous);
+    var nextCandidates = candidatesFromContext(next);
+    var previousOrder = previousCandidates.map(function (candidate) { return candidate.id; });
+    var nextOrder = nextCandidates.map(function (candidate) { return candidate.id; });
+    if (!sameList(previousOrder, nextOrder)) changes.push('方案顺序从“' + previousCandidates.map(function (candidate) { return candidate.label; }).join(' → ') + '”调整为“' + nextCandidates.map(function (candidate) { return candidate.label; }).join(' → ') + '”');
+    previousCandidates.forEach(function (candidate) {
+      var nextCandidate = nextCandidates.filter(function (item) { return item.id === candidate.id; })[0];
+      if (nextCandidate && candidate.score !== nextCandidate.score) changes.push('“' + candidate.label + '”依据分从 ' + candidate.score + ' 调整为 ' + nextCandidate.score);
+      if (nextCandidate && candidate.firstAction !== nextCandidate.firstAction) changes.push('“' + candidate.label + '”第一步已经改写');
+    });
+    return changes;
+  }
+
+  function candidateSnapshot(candidate) {
+    var source = candidate && typeof candidate === 'object' ? candidate : {};
+    return {
+      id: ['focus', 'coverage', 'contrast'].indexOf(source.id) >= 0 ? source.id : 'focus',
+      label: text(source.label).slice(0, 40),
+      title: text(source.title).slice(0, 120),
+      summary: text(source.summary).slice(0, 500),
+      gain: text(source.gain).slice(0, 500),
+      tradeoff: text(source.tradeoff).slice(0, 500),
+      fit: text(source.fit).slice(0, 500),
+      basis: text(source.basis).slice(0, 800),
+      firstAction: text(source.firstAction).slice(0, 500),
+      reviewPrompt: text(source.reviewPrompt).slice(0, 500),
+      route: Array.isArray(source.route) ? source.route.map(text).filter(Boolean).slice(0, 6) : [],
+      score: Math.round(number(source.score, 0)),
+      rank: Math.max(1, Math.round(number(source.rank, 1)))
+    };
+  }
+
+  function createDecision(input) {
+    var source = input && typeof input === 'object' ? input : {};
+    var context = source.context && source.context.policy ? source.context : buildDecisionContext(source.profile, source.project, source.counts, source.feedback, source.options);
+    var candidates = candidatesFromContext(context);
+    var candidate = candidates.filter(function (item) { return item.id === source.candidateId; })[0] || candidates[0];
+    var previous = source.previous && typeof source.previous === 'object' ? source.previous : null;
+    var changes = previous && previous.context ? diffDecisionContexts(previous.context, context) : [];
+    if (previous && previous.candidate && previous.candidate.id !== candidate.id) changes.push('人工选择从“' + previous.candidate.label + '”改为“' + candidate.label + '”');
+    return {
+      version: Math.max(1, Math.round(number(source.version, previous ? number(previous.version, 0) + 1 : 1))),
+      confirmedAt: text(source.confirmedAt).slice(0, 60) || '已由研究者确认',
+      context: context,
+      candidate: candidateSnapshot(candidate),
+      signature: decisionSignature(context, candidate.id),
+      changes: changes
+    };
+  }
+
+  function normalizeDecisionHistory(value) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(-12).map(function (entry, index) {
+      var source = entry && typeof entry === 'object' ? entry : {};
+      var context = source.context && source.context.policy ? source.context : buildDecisionContext();
+      return {
+        version: index + 1,
+        confirmedAt: text(source.confirmedAt).slice(0, 60) || '已确认',
+        context: context,
+        candidate: candidateSnapshot(source.candidate),
+        signature: text(source.signature) || decisionSignature(context, source.candidate && source.candidate.id),
+        changes: Array.isArray(source.changes) ? source.changes.map(text).filter(Boolean).slice(0, 40) : []
+      };
+    });
+  }
+
+  function buildDecisionProposal(input) {
+    var source = input && typeof input === 'object' ? input : {};
+    var previous = source.previous && typeof source.previous === 'object' ? source.previous : null;
+    if (!previous || !previous.context) return null;
+    var context = source.context && source.context.policy ? source.context : buildDecisionContext(
+      source.profile,
+      source.project,
+      source.counts,
+      source.feedback,
+      source.options
+    );
+    var candidates = candidatesFromContext(context);
+    var candidate = candidates.filter(function (item) { return item.id === source.candidateId; })[0] || candidates[0];
+    var signature = decisionSignature(context, candidate.id);
+    if (signature === previous.signature) return null;
+    var changes = diffDecisionContexts(previous.context, context);
+    if (previous.candidate && previous.candidate.id !== candidate.id) {
+      changes.push('人工选择从“' + previous.candidate.label + '”改为“' + candidate.label + '”');
+    }
+    return {
+      version: Math.max(1, Math.round(number(source.version, number(previous.version, 0) + 1))),
+      baseVersion: Math.max(1, Math.round(number(previous.version, 1))),
+      createdAt: text(source.createdAt).slice(0, 60) || '等待研究者确认',
+      context: context,
+      candidateId: candidate.id,
+      candidateLabel: candidate.label,
+      candidate: candidateSnapshot(candidate),
+      signature: signature,
+      feedbackLabel: context.policy.feedbackCopy,
+      changes: changes,
+      current: false
+    };
+  }
+
+  function buildDecisionArchive(historyInput, proposalInput) {
+    var history = normalizeDecisionHistory(historyInput);
+    var proposal = proposalInput && typeof proposalInput === 'object' ? proposalInput : null;
+    var lines = ['## 研究策略决策版本', ''];
+    if (!history.length) lines.push('尚未确认研究策略。', '');
+    history.forEach(function (decision) {
+      lines.push('### V' + decision.version + ' · ' + decision.candidate.label);
+      lines.push('- 确认时间：' + decision.confirmedAt);
+      lines.push('- 研究阶段：' + STAGE_LABELS[decision.context.profile.researchStage]);
+      lines.push('- 交付目标：' + GOAL_LABELS[decision.context.profile.deliveryGoal]);
+      lines.push('- 真实反馈：' + decision.context.policy.feedbackCopy);
+      lines.push('- 人工确认：' + decision.candidate.title);
+      lines.push('- 收益：' + decision.candidate.gain);
+      lines.push('- 代价：' + decision.candidate.tradeoff);
+      lines.push('- 适用依据：' + decision.candidate.basis);
+      lines.push('- 第一行动：' + decision.candidate.firstAction);
+      lines.push('- 复盘问题：' + decision.candidate.reviewPrompt);
+      if (decision.changes.length) lines.push('- 相比 V' + (decision.version - 1) + '：' + decision.changes.join('；'));
+      lines.push('');
+    });
+    if (proposal) {
+      lines.push('### V' + Math.max(1, Math.round(number(proposal.version, history.length + 1))) + ' · 待人工确认');
+      lines.push('- 真实反馈：' + text(proposal.feedbackLabel || (proposal.context && proposal.context.policy && proposal.context.policy.feedbackCopy) || '尚未记录'));
+      lines.push('- 当前候选：' + text(proposal.candidateLabel || '等待选择'));
+      lines.push('- 事实差异：' + (Array.isArray(proposal.changes) && proposal.changes.length ? proposal.changes.map(text).filter(Boolean).join('；') : '尚无结构性变化'));
+      lines.push('');
+    }
+    return lines.join('\n');
+  }
+
   return {
     buildPolicy: buildPolicy,
     buildSearchPlan: buildSearchPlan,
     scoreRecord: scoreRecord,
-    rankRecords: rankRecords
+    rankRecords: rankRecords,
+    buildDecisionContext: buildDecisionContext,
+    buildStrategyCandidates: buildStrategyCandidates,
+    decisionSignature: decisionSignature,
+    diffDecisionContexts: diffDecisionContexts,
+    createDecision: createDecision,
+    normalizeDecisionHistory: normalizeDecisionHistory,
+    buildDecisionProposal: buildDecisionProposal,
+    buildDecisionArchive: buildDecisionArchive
   };
 });
