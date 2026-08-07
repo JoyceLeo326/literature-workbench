@@ -1,6 +1,6 @@
 var CACHE_PREFIX = 'litpath-workbench-';
-var CACHE = CACHE_PREFIX + 'v13';
-var CORE = ['./', './index.html', './styles.css', './cost-policy.js', './literature-core.js', './workspace-core.js', './experience-core.js', './story-core.js', './account-core.js', './script.js', './manifest.webmanifest', './favicon.svg', './assets/brand/wenjing-mark.svg', './assets/story/wenjing-01-dusk-question.webp'];
+var CACHE = CACHE_PREFIX + 'v14';
+var CORE = ['./', './index.html', './styles.css', './literature-core.js', './workspace-core.js', './experience-core.js', './story-core.js', './decision-core.js', './account-core.js', './script.js', './manifest.webmanifest', './favicon.svg', './assets/brand/wenjing-mark.svg', './assets/story/wenjing-01-dusk-question.webp'];
 
 self.addEventListener('install', function (event) {
   event.waitUntil(caches.open(CACHE).then(function (cache) { return cache.addAll(CORE); }).then(function () { return self.skipWaiting(); }));
