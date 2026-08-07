@@ -1496,7 +1496,7 @@
       var del = event.target.closest('[data-delete-record]');
       if (del) {
         var id = del.getAttribute('data-delete-record');
-        openConfirm('这条文献记录将从当前浏览器中永久删除。建议先导出 JSON 备份。', function () { deleteIds([id]); });
+        openConfirm('这条文献记录将被永久删除。建议先导出 JSON 备份。', function () { deleteIds([id]); });
         return;
       }
       if (event.target.closest('[data-cancel-confirm]')) { closeConfirm(); return; }
