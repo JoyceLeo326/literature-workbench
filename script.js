@@ -720,11 +720,9 @@
     var previousReview = Story.normalizeFeedback(state.project.reviewFeedback);
     var history = strategyHistory();
     if (history.length && !Decision.decisionFeedbackChanged(previousReview, review)) {
-      var unchangedProposal = refreshStrategyProposalState();
-      renderAll();
-      toast(unchangedProposal
-        ? '反馈内容没有变化，已有 V' + unchangedProposal.version + ' 提案仍等待确认'
-        : '反馈与已记录内容相同，V' + latestStrategyDecision().version + ' 保持不变');
+      toast(state.strategyProposal
+        ? '反馈没有变化，V' + state.strategyProposal.version + ' 提案仍等待确认'
+        : '反馈没有变化，当前 V' + latestStrategyDecision().version + ' 保持有效');
       return false;
     }
     state.project.reviewFeedback = review;
