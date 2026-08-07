@@ -6,15 +6,15 @@
   var ACCOUNT_STORAGE_KEY = 'litpath-local-accounts-v1';
   var SESSION_ACCOUNT_KEY = 'litpath-account-session-v1';
   var VERSION = 2;
-  var CostPolicy = window.LitpathCostPolicy;
-  var costPolicy = CostPolicy.createCostPolicy(window.LITPATH_CONFIG || {});
   var Synthesis = window.LitpathSynthesis;
   var Workspace = window.LitpathWorkspace;
   var Account = window.LitpathAccount;
   var Experience = window.LitpathExperience;
   var Story = window.LitpathStory;
+  var Decision = window.LitpathDecision;
   var selectedIds = new Set();
   var pendingDelete = null;
+  var pendingExportType = '';
   var issueFilter = 'all';
   var dirtyForms = new Set();
   var screeningSaveTimer = null;
@@ -464,10 +464,14 @@
     var search = safeText($('#library-search').value).trim().toLowerCase();
     var language = $('[data-filter-language]').value;
     var status = $('[data-filter-status]').value;
-    return formalRecords().filter(function (record) {
+    var records = formalRecords().filter(function (record) {
       var haystack = [record.title, record.authors, record.keywords, record.source].join(' ').toLowerCase();
       return (!search || haystack.indexOf(search) >= 0) && (language === 'all' || record.language === language) && (status === 'all' || record.status === status);
     });
+    var sort = $('[data-library-sort]').value;
+    if (sort === 'updated') return records.sort(function (a, b) { return new Date(b.updatedAt) - new Date(a.updatedAt); });
+    if (sort === 'year') return records.sort(function (a, b) { return Number(b.year || 0) - Number(a.year || 0); });
+    return Decision.rankRecords(records, currentProfile(), state.project, counts(), state.project.reviewFeedback).map(function (item) { return item.record; });
   }
 
   function statusClass(status) { return status === '已核验' ? 'complete' : status === '待补全' ? 'missing' : 'review'; }
@@ -478,10 +482,11 @@
     var empty = $('[data-library-empty]');
     body.innerHTML = records.map(function (record) {
       var safeId = escapeHTML(record.id);
+      var priority = Decision.scoreRecord(record, currentProfile(), state.project, counts(), state.project.reviewFeedback);
       return '<tr class="' + (selectedIds.has(record.id) ? 'is-selected' : '') + '" data-record-id="' + safeId + '">' +
         '<td><input type="checkbox" data-select-record="' + safeId + '" aria-label="选择 ' + escapeHTML(record.title || '未命名记录') + '" ' + (selectedIds.has(record.id) ? 'checked' : '') + '></td>' +
         '<td><span class="language-badge ' + (record.language === '英文' ? 'en' : '') + '">' + record.language + '</span></td>' +
-        '<td><strong class="record-title">' + escapeHTML(record.title || '未命名记录') + '</strong><small class="record-source">' + escapeHTML(record.source || '来源待补') + ' · ' + escapeHTML(record.type) + (record.demo ? ' · 示例资料' : '') + '</small></td>' +
+        '<td><strong class="record-title">' + escapeHTML(record.title || '未命名记录') + '</strong><small class="record-source">' + escapeHTML(record.source || '来源待补') + ' · ' + escapeHTML(record.type) + '</small><span class="priority-inline"><b>' + priority.score + '</b> ' + escapeHTML(priority.level) + ' · ' + escapeHTML(priority.next) + '</span></td>' +
         '<td>' + escapeHTML(record.authors || '待补') + '</td>' +
         '<td>' + escapeHTML(record.year || '—') + '</td>' +
         '<td><span class="record-status ' + statusClass(record.status) + '">' + record.status + '</span></td>' +
@@ -499,6 +504,33 @@
     selectAll.checked = visibleIds.length > 0 && visibleIds.every(function (id) { return selectedIds.has(id); });
     selectAll.indeterminate = visibleIds.some(function (id) { return selectedIds.has(id); }) && !selectAll.checked;
     renderBulkBar();
+  }
+
+  function renderDecisionStrategy() {
+    var policy = Decision.buildPolicy(currentProfile(), state.project, counts(), state.project.reviewFeedback);
+    var plan = Decision.buildSearchPlan(currentProfile(), state.project, counts(), state.project.reviewFeedback);
+    $('[data-strategy-headline]').textContent = policy.headline;
+    $('[data-strategy-language]').textContent = policy.languageFocus + '优先';
+    $('[data-strategy-tradeoff]').textContent = policy.tradeoff + ' 本轮反馈：' + policy.feedbackCopy + '。';
+    var weightLabels = { relevance: '边界相关', traceability: '来源追溯', completeness: '字段完整', recency: '时间新近', contrast: '反证分歧' };
+    $('[data-strategy-weights]').innerHTML = Object.keys(weightLabels).map(function (key) {
+      return '<div><span>' + weightLabels[key] + '</span><strong>' + policy.weights[key] + '%</strong><i><b style="width:' + policy.weights[key] + '%"></b></i></div>';
+    }).join('');
+    $('[data-search-plan]').innerHTML = plan.map(function (item) {
+      return '<li><span>' + item.index + '</span><div><strong>' + escapeHTML(item.title) + '</strong><p>' + escapeHTML(item.copy) + '</p><small>' + escapeHTML(item.meta) + '</small></div></li>';
+    }).join('');
+  }
+
+  function renderPriorityQueue() {
+    var container = $('[data-priority-queue]');
+    var records = Decision.rankRecords(formalRecords(), currentProfile(), state.project, counts(), state.project.reviewFeedback).slice(0, 3);
+    if (!records.length) {
+      container.innerHTML = '<div class="priority-empty"><strong>还没有待判断的题录</strong><span>录入第一篇文献后，这里会解释为什么它应当先处理。</span><button class="button button-primary" type="button" data-add-record>添加文献</button></div>';
+      return;
+    }
+    container.innerHTML = records.map(function (item, index) {
+      return '<button class="priority-card" type="button" data-edit-record="' + escapeHTML(item.record.id) + '"><span class="priority-rank">0' + (index + 1) + '</span><div><strong>' + escapeHTML(item.record.title || '未命名记录') + '</strong><p>' + escapeHTML(item.priority.reasons.join(' · ') || '需要人工判断与研究边界的关系') + '</p><small>下一步：' + escapeHTML(item.priority.next) + '</small></div><em><b>' + item.priority.score + '</b><span>' + escapeHTML(item.priority.level) + '</span></em></button>';
+    }).join('');
   }
 
   function renderBulkBar() {
@@ -661,8 +693,10 @@
     renderAdvice();
     renderJourney();
     renderStory();
+    renderDecisionStrategy();
     renderRecent();
     renderLibrary();
+    renderPriorityQueue();
     renderScreening();
     renderQuality();
     renderSearchLogs();
@@ -774,6 +808,7 @@
       modal.hidden = true;
       closeBackdropIfClear();
     }, 180);
+    if (modal.matches('[data-export-confirm-modal]')) pendingExportType = '';
     return true;
   }
 
@@ -786,6 +821,31 @@
     form.reset();
     clearFormDirty(form);
     openDialog('[data-project-modal]', '[name="title"]');
+  }
+
+  function openSearchLogDialog() {
+    var form = $('[data-search-log-form]');
+    form.reset();
+    var policy = Decision.buildPolicy(currentProfile(), state.project, counts(), state.project.reviewFeedback);
+    form.elements.language.value = policy.languageFocus === '中英并行' ? '中英' : policy.languageFocus;
+    $('[data-search-log-context]').innerHTML = '<span>本轮策略</span><strong>' + escapeHTML(policy.headline) + '</strong><p>' + escapeHTML(policy.tradeoff) + '</p>';
+    openDialog('[data-search-log-modal]', '#search-log-platform');
+  }
+
+  function saveSearchLog(event) {
+    event.preventDefault();
+    var data = formDataObject(event.currentTarget);
+    if (!data.platform || !data.note) {
+      if (!data.platform) event.currentTarget.elements.platform.focus();
+      else event.currentTarget.elements.note.focus();
+      toast('请补齐检索平台和结果说明。', 'error');
+      return;
+    }
+    state.searchLogs.push(normalizeSearchLog({ id: uid(), platform: data.platform, note: data.note, language: data.language, createdAt: nowISO() }));
+    saveState('检索记录已保存');
+    closeDialog($('[data-search-log-modal]'));
+    renderAll();
+    toast('本次检索已记录');
   }
 
   function switchProject(projectId) {
@@ -1035,26 +1095,10 @@
     var doi = normalizeDOI(form.elements.doi.value);
     if (!doi) { toast('请先输入 DOI。', 'error'); form.elements.doi.focus(); return; }
     if (!isValidDOI(doi)) { toast('请输入有效 DOI，例如 10.1000/example。', 'error'); form.elements.doi.focus(); return; }
-    var button = $('[data-doi-lookup]');
-    button.disabled = true;
-    button.textContent = '正在查询…';
-    CostPolicy.requestPublicJson('crossref', 'https://api.crossref.org/works/' + encodeURIComponent(doi), window.fetch.bind(window))
-      .then(function (payload) {
-        var item = payload && payload.message ? payload.message : {};
-        var authors = (item.author || []).map(function (author) { return [author.given, author.family].filter(Boolean).join(' '); }).join('; ');
-        var dateParts = item.published && item.published['date-parts'] && item.published['date-parts'][0];
-        form.elements.title.value = (item.title && item.title[0]) || form.elements.title.value;
-        form.elements.authors.value = authors || form.elements.authors.value;
-        form.elements.year.value = (dateParts && dateParts[0]) || form.elements.year.value;
-        form.elements.source.value = (item['container-title'] && item['container-title'][0]) || item.publisher || form.elements.source.value;
-        form.elements.url.value = item.URL || ('https://doi.org/' + doi);
-        form.elements.type.value = /proceedings|conference/i.test(item.type || '') ? '会议论文' : '期刊论文';
-        form.elements.language.value = item.language && item.language.toLowerCase().indexOf('zh') === 0 ? '中文' : '英文';
-        form.elements.doi.value = doi;
-        toast('DOI 元数据已补全，请核对摘要与作者单位');
-      })
-      .catch(function (error) { toast(error.message || 'Crossref 请求失败；可继续手动录入或导入。', 'error'); })
-      .finally(function () { button.disabled = false; button.textContent = '自动补全'; });
+    form.elements.doi.value = doi;
+    form.elements.doi.classList.remove('is-error');
+    markFormDirty(form);
+    toast('DOI 格式有效；请继续依据原文核对题录字段');
   }
 
   function deleteIds(ids) {
@@ -1195,6 +1239,39 @@
   function exportReport() {
     downloadFile('文径-质量检查报告-' + localDateStamp() + '.txt', qualityReport(), 'text/plain;charset=utf-8');
     toast('质量检查报告已导出');
+  }
+
+  function runExport(type) {
+    if (type === 'csv') exportCSV();
+    else if (type === 'json') exportJSON();
+    else if (type === 'bibtex') exportBibTeX();
+    else if (type === 'synthesis') exportSynthesis();
+    else exportReport();
+  }
+
+  function requestExport(type) {
+    var labels = { csv: '文献目录 CSV', json: '完整项目备份 JSON', bibtex: 'BibTeX 引用库', synthesis: '证据综合 Markdown', report: '质量检查报告' };
+    var c = counts();
+    var issues = analyzeQuality();
+    var screening = Synthesis.summarizeScreening(formalRecords());
+    var checked = Object.keys(state.finalChecks).filter(function (key) { return state.finalChecks[key]; }).length;
+    pendingExportType = labels[type] ? type : 'report';
+    $('[data-export-confirm-summary]').innerHTML = '<span>即将生成</span><h3>' + escapeHTML(labels[pendingExportType]) + '</h3><div class="export-facts">' +
+      '<p><b>' + c.total + '</b><small>题录记录</small></p>' +
+      '<p><b>' + screening.included + '</b><small>人工纳入</small></p>' +
+      '<p><b>' + c.verified + '</b><small>原文核验</small></p>' +
+      '<p><b>' + issues.length + '</b><small>质量问题</small></p>' +
+      '</div><p class="export-check-copy">终检清单已确认 ' + checked + ' / 4 项。文件会保留当前研究画像、上一轮反馈和判断留痕。</p>';
+    $('[data-export-human-check]').checked = false;
+    $('[data-confirm-export]').disabled = true;
+    openDialog('[data-export-confirm-modal]', '[data-export-human-check]');
+  }
+
+  function confirmExport() {
+    if (!$('[data-export-human-check]').checked || !pendingExportType) return;
+    var type = pendingExportType;
+    closeDialog($('[data-export-confirm-modal]'));
+    window.setTimeout(function () { runExport(type); }, 190);
   }
 
   function parseCSV(text) {
@@ -1424,16 +1501,9 @@
       }
       var copyQuery = event.target.closest('[data-copy-query]');
       if (copyQuery) { copyText(state.queries[copyQuery.getAttribute('data-copy-query')], '检索式已复制'); return; }
-      if (event.target.closest('[data-log-query]')) {
-        var platform = window.prompt('检索平台', '知网 / 万方 / Web of Science');
-        if (platform === null) return;
-        var note = window.prompt('结果数量或筛选说明', '初检结果待筛选');
-        if (note === null) return;
-        state.searchLogs.push({ id: uid(), platform: platform.trim() || '综合检索', note: note.trim() || '未填写结果数', language: /Scholar|Web|Scopus|OpenAlex/i.test(platform) ? '英文' : '中文', createdAt: nowISO() });
-        saveState(); renderAll(); toast('本次检索已记录'); return;
-      }
+      if (event.target.closest('[data-log-query]')) { openSearchLogDialog(); return; }
       var clear = event.target.closest('[data-clear-filters]');
-      if (clear) { $('#library-search').value = ''; $('[data-filter-language]').value = 'all'; $('[data-filter-status]').value = 'all'; renderLibrary(); return; }
+      if (clear) { $('#library-search').value = ''; $('[data-library-sort]').value = 'priority'; $('[data-filter-language]').value = 'all'; $('[data-filter-status]').value = 'all'; renderLibrary(); return; }
       if (event.target.closest('[data-clear-screen-filters]')) {
         $('[data-screen-search]').value = '';
         $('[data-screen-filter-decision]').value = 'all';
@@ -1453,10 +1523,10 @@
       }
       var exportButton = event.target.closest('[data-export]');
       if (exportButton) {
-        var type = exportButton.getAttribute('data-export');
-        if (type === 'csv') exportCSV(); else if (type === 'json') exportJSON(); else if (type === 'bibtex') exportBibTeX(); else if (type === 'synthesis') exportSynthesis(); else exportReport();
+        requestExport(exportButton.getAttribute('data-export'));
         return;
       }
+      if (event.target.closest('[data-confirm-export]')) { confirmExport(); return; }
       if (event.target.closest('[data-doi-lookup]')) { lookupDOI(); return; }
       if (event.target.closest('[data-copy-manifest]')) { copyText(manifestText(), '文件命名与目录规范已复制'); return; }
       if (event.target.closest('[data-import-trigger]')) { $('[data-import-input]').click(); return; }
@@ -1466,6 +1536,7 @@
 
     $('[data-record-form]').addEventListener('submit', saveRecord);
     $('[data-project-form]').addEventListener('submit', createProject);
+    $('[data-search-log-form]').addEventListener('submit', saveSearchLog);
     $('[data-login-form]').addEventListener('submit', loginAccount);
     $('[data-register-form]').addEventListener('submit', registerAccount);
     $('[data-project-switcher]').addEventListener('change', function (event) { switchProject(event.target.value); });
@@ -1525,6 +1596,8 @@
     $('#library-search').addEventListener('input', renderLibrary);
     $('[data-filter-language]').addEventListener('change', renderLibrary);
     $('[data-filter-status]').addEventListener('change', renderLibrary);
+    $('[data-library-sort]').addEventListener('change', renderLibrary);
+    $('[data-export-human-check]').addEventListener('change', function (event) { $('[data-confirm-export]').disabled = !event.target.checked; });
     $('[data-screen-search]').addEventListener('input', renderScreening);
     $('[data-screen-filter-decision]').addEventListener('change', renderScreening);
     $('[data-screen-filter-grade]').addEventListener('change', renderScreening);

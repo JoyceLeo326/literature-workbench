@@ -8,20 +8,14 @@
 
 - 应用是静态 HTML / CSS / JavaScript，没有自建后端、数据库服务器或所有者侧 API 密钥。
 - 正式题录、筛选决定、证据综合字段和终检状态当前保存在浏览器 `localStorage`；完整 JSON 可导出并再次导入。
-- DOI 补全只调用 Crossref 免费公共 REST API。429、拒绝、网络中断或无效响应都会明确停止联网请求，不会尝试 Metadata Plus、代理接口或其他付费回退。
-- 公共接口不可用时，手动录入、CSV / JSON / BibTeX / RIS 导入、筛选、综合和全部本地导出继续可用。
+- DOI 只在浏览器内做格式校验；题名、作者、年份与来源仍由使用者依据原文录入，不发起境外元数据 API 请求。
+- 手动录入、CSV / JSON / BibTeX / RIS 导入、筛选、综合和全部导出均为本地能力，不需要第三方运行时服务。
 - `.env.example` 明确记录 `COST_MODE=zero_owner_cost`；浏览器运行时也硬性回落到同一模式，其他值不能开启付费能力。
 - OCR、云同步、成本仪表盘均未实现；界面和文档不得把这些路线写成现有功能。
 
-## 公共 API 边界
+## 运行时网络边界
 
-### Crossref
-
-当前只允许 `https://api.crossref.org` 免费公共端点。Crossref 会用 HTTP 429 表示限流，且官方限制可能调整；实现按状态失败关闭并提示继续本地工作。参考 [Crossref Access and authentication](https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/)。
-
-### OpenAlex
-
-OpenAlex 当前未集成，也不配置项目所有者密钥。官方现行 API 需要 API key，并同时存在免费额度与付费计划；如果未来评估接入，必须单独设计使用者自带凭据、免费额度耗尽即停止的路径，不能由项目所有者账户自动付费。参考 [OpenAlex Developers](https://developers.openalex.org/)。
+正式发布包不加载境外字体、脚本、CDN 或元数据接口，也不配置项目所有者密钥。DOI 校验、题录维护、筛选、综合、质量检查和文件导出均在当前浏览器内完成；原文链接只作为使用者录入的可追溯字段保存，不由工作台主动访问。
 
 ## IndexedDB（后续路线，未实现）
 
@@ -64,7 +58,7 @@ Vercel Hobby 仅用于个人、非商业作品演示。Vercel 官方说明 Hobby
 
 - `COST_MODE` 保持 `zero_owner_cost`；
 - 未提交 API key、支付信息或所有者侧云凭据；
-- 公共 API 失败时只提示失败和本地替代路径；
+- 发布产物不包含外部运行时 API 请求；
 - 本地录入、导入、筛选、综合、JSON 备份和导出可离线继续；
 - 部署只包含静态资源；
 - 商业发布前重新核对第三方官方条款与配额。

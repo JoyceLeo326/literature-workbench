@@ -31,7 +31,7 @@ test('ships an immersive profile surface and a mainland-first Pages artifact', (
   assert.match(html, /property="og:title"/);
   assert.match(html, /name="twitter:card"/);
   assert.doesNotMatch(`${html}\n${script}`, /零成本|0 成本|无需登录|评委|MVP|教学演示/);
-  assert.doesNotMatch(`${html}\n${script}`, /fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com/);
+  assert.doesNotMatch(`${html}\n${script}`, /fonts\.(googleapis|gstatic)\.com|cdnjs\.cloudflare\.com|api\.crossref\.org|api\.openalex\.org|\bfetch\s*\(/);
   assert.doesNotMatch(css, /body\s*\{[^}]*\bmin-width\s*:\s*320px\b/s, 'a 320px viewport must not inherit a fixed body width in addition to its scrollbar');
   assert.match(css, /\.account-link\s*\{[^}]*\bmin-width\s*:\s*44px\b/s, 'the compact account entry must remain a full touch target');
   assert.match(css, /\.button\.small\s*\{[^}]*\bmin-height\s*:\s*44px\b/s, 'compact actions must remain full touch targets');

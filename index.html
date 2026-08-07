@@ -264,6 +264,15 @@
             </form>
 
             <div class="query-results">
+              <article class="panel strategy-panel reveal" aria-labelledby="strategy-title">
+                <div class="strategy-heading">
+                  <div><p class="eyebrow">本轮检索路线</p><h3 id="strategy-title" data-strategy-headline>研究画像正在生成取舍策略</h3></div>
+                  <span class="status-pill" data-strategy-language>中英并行</span>
+                </div>
+                <p class="strategy-tradeoff" data-strategy-tradeoff>保存研究边界后，文径会解释本轮先找什么、暂缓什么，以及为什么。</p>
+                <div class="strategy-weights" data-strategy-weights aria-label="证据优先级权重"></div>
+                <ol class="search-plan" data-search-plan></ol>
+              </article>
               <article class="panel query-card reveal"><div class="query-card-head"><div><span>CN</span><strong>中文综合检索式</strong></div><button class="icon-button" type="button" data-copy-query="cn" aria-label="复制中文检索式"><svg><use href="#i-copy"/></svg></button></div><pre data-query-output="cn"></pre><div class="source-tags"><span>知网</span><span>万方</span><span>国家哲学社会科学文献中心</span></div></article>
               <article class="panel query-card reveal"><div class="query-card-head"><div><span>EN</span><strong>English Boolean Query</strong></div><button class="icon-button" type="button" data-copy-query="en" aria-label="复制英文检索式"><svg><use href="#i-copy"/></svg></button></div><pre data-query-output="en"></pre><div class="source-tags"><span>Web of Science</span><span>Scopus</span><span>Crossref</span><span>OpenAlex</span></div></article>
               <article class="panel search-log-panel reveal"><div class="panel-heading"><div><p class="eyebrow">检索留痕</p><h3>查询记录</h3></div><button class="button button-secondary small" type="button" data-log-query>记录本次检索</button></div><div class="search-log" data-search-log></div></article>
@@ -273,10 +282,18 @@
 
         <section class="view" data-view="library" aria-labelledby="library-title">
           <div class="page-intro library-intro reveal"><div><p class="eyebrow">03 · ORGANIZE</p><h2 id="library-title">文献目录</h2><p>所有字段从原文录入。摘要、作者和来源信息缺失时会进入待核验队列。</p></div><div class="page-actions"><button class="button button-secondary" type="button" data-import-trigger><svg><use href="#i-upload"/></svg>导入目录</button><button class="button button-primary" type="button" data-add-record><svg><use href="#i-plus"/></svg>添加文献</button></div></div>
+          <article class="panel priority-panel reveal" aria-labelledby="priority-title">
+            <div class="priority-heading">
+              <div><p class="eyebrow">画像驱动的复核顺序</p><h3 id="priority-title">先处理最能改变判断的证据</h3></div>
+              <button class="button button-secondary small" type="button" data-nav="scope">调整画像</button>
+            </div>
+            <p data-priority-explanation>研究阶段、交付目标、时间预算、语种缺口和上一轮反馈共同决定排序；分数只解释处理顺序，不替代人工纳入决定。</p>
+            <div class="priority-queue" data-priority-queue></div>
+          </article>
           <div class="panel library-panel reveal">
             <div class="library-toolbar">
               <label class="search-box" for="library-search"><svg><use href="#i-search"/></svg><input id="library-search" type="search" placeholder="搜索标题、作者、关键词"></label>
-              <div class="filter-row"><label><span class="sr-only">语言</span><select data-filter-language><option value="all">全部语言</option><option value="中文">中文</option><option value="英文">英文</option></select></label><label><span class="sr-only">状态</span><select data-filter-status><option value="all">全部状态</option><option value="待补全">待补全</option><option value="待核验">待核验</option><option value="已核验">已核验</option></select></label><button class="icon-button" type="button" data-clear-filters aria-label="清除筛选"><svg><use href="#i-filter"/></svg></button></div>
+              <div class="filter-row"><label><span class="sr-only">排序</span><select data-library-sort><option value="priority">画像优先</option><option value="updated">最近更新</option><option value="year">年份从新到旧</option></select></label><label><span class="sr-only">语言</span><select data-filter-language><option value="all">全部语言</option><option value="中文">中文</option><option value="英文">英文</option></select></label><label><span class="sr-only">状态</span><select data-filter-status><option value="all">全部状态</option><option value="待补全">待补全</option><option value="待核验">待核验</option><option value="已核验">已核验</option></select></label><button class="icon-button" type="button" data-clear-filters aria-label="清除筛选"><svg><use href="#i-filter"/></svg></button></div>
             </div>
             <div class="bulk-bar" data-bulk-bar hidden><span>已选择 <b data-selected-count>0</b> 篇</span><div><button type="button" data-bulk-verify>标记已核验</button><button class="danger-link" type="button" data-bulk-delete>删除记录</button></div></div>
             <div class="table-wrapper">
@@ -387,7 +404,7 @@
       <div class="field"><label for="record-abstract">摘要 <span>*</span></label><textarea id="record-abstract" name="abstract" rows="5" required></textarea></div>
       <div class="form-row two"><div class="field"><label for="record-authors">作者 <span>*</span></label><input id="record-authors" name="authors" required placeholder="多位作者用分号分隔"></div><div class="field"><label for="record-affiliation">作者单位</label><input id="record-affiliation" name="affiliation"></div></div>
       <div class="form-row three"><div class="field"><label for="record-year">年份</label><input id="record-year" name="year" type="number" min="1900" max="2100"></div><div class="field"><label for="record-type">类型</label><select id="record-type" name="type"><option>期刊论文</option><option>会议论文</option><option>研究报告</option><option>学位论文</option><option>其他</option></select></div><div class="field"><label for="record-source">期刊 / 来源</label><input id="record-source" name="source"></div></div>
-      <div class="form-row two"><div class="field"><label for="record-doi">DOI</label><div class="inline-field"><input id="record-doi" name="doi"><button class="button button-secondary" type="button" data-doi-lookup>自动补全</button></div><small>通过 Crossref 公共接口读取题名、作者、年份与来源。</small></div><div class="field"><label for="record-url">原文链接</label><input id="record-url" name="url" type="url"></div></div>
+      <div class="form-row two"><div class="field"><label for="record-doi">DOI</label><div class="inline-field"><input id="record-doi" name="doi"><button class="button button-secondary" type="button" data-doi-lookup>校验格式</button></div><small>仅在浏览器内校验格式；题名、作者与来源仍需回到原文填写。</small></div><div class="field"><label for="record-url">原文链接</label><input id="record-url" name="url" type="url"></div></div>
       <div class="form-row two"><div class="field"><label for="record-file">PDF 文件名</label><input id="record-file" name="fileName"></div><div class="field"><label for="record-database">检索来源</label><input id="record-database" name="database" placeholder="知网 / 万方 / Web of Science"></div></div>
       <div class="field"><label for="record-keywords">关键词</label><input id="record-keywords" name="keywords" placeholder="使用逗号分隔"></div>
       <div class="field"><label for="record-notes">备注</label><textarea id="record-notes" name="notes" rows="3"></textarea></div>
@@ -402,6 +419,26 @@
       <div class="field"><label for="new-project-topic">研究问题</label><textarea id="new-project-topic" name="topic" rows="4" maxlength="600" placeholder="描述研究对象、关系与使用场景"></textarea></div>
       <footer><button class="button button-secondary" type="button" data-close-dialog>取消</button><button class="button button-primary" type="submit">创建并开始</button></footer>
     </form>
+  </section>
+
+  <section class="modal compact-modal search-log-modal" data-search-log-modal role="dialog" aria-modal="true" aria-labelledby="search-log-modal-title" hidden>
+    <header><div><p class="eyebrow">SEARCH TRACE</p><h2 id="search-log-modal-title">记录本次检索</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭"><svg><use href="#i-close"/></svg></button></header>
+    <form data-search-log-form>
+      <div class="field"><label for="search-log-platform">检索平台</label><input id="search-log-platform" name="platform" required maxlength="120" placeholder="例如：知网、万方、Web of Science"></div>
+      <div class="field"><label for="search-log-language">检索语种</label><select id="search-log-language" name="language"><option>中文</option><option>英文</option><option>中英</option></select></div>
+      <div class="field"><label for="search-log-note">结果数量与筛选说明</label><textarea id="search-log-note" name="note" rows="4" required maxlength="500" placeholder="例如：初检 126 条；限定 2021—2026 年并去除会议摘要后保留 34 条"></textarea></div>
+      <div class="dialog-context" data-search-log-context></div>
+      <footer><button class="button button-secondary" type="button" data-close-dialog>取消</button><button class="button button-primary" type="submit">保存检索记录</button></footer>
+    </form>
+  </section>
+
+  <section class="modal compact-modal export-confirm-modal" data-export-confirm-modal role="dialog" aria-modal="true" aria-labelledby="export-confirm-title" hidden>
+    <header><div><p class="eyebrow">HUMAN CHECKPOINT</p><h2 id="export-confirm-title">确认这次交付</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭"><svg><use href="#i-close"/></svg></button></header>
+    <div class="export-confirm-body">
+      <div class="export-confirm-summary" data-export-confirm-summary></div>
+      <label class="human-confirm"><input type="checkbox" data-export-human-check><span><b>我已回到原文核对关键判断</b><small>文径只整理人工录入内容，不替代研究者对纳入、证据等级与结论边界的判断。</small></span></label>
+      <footer><button class="button button-secondary" type="button" data-close-dialog>继续检查</button><button class="button button-primary" type="button" data-confirm-export disabled>确认并生成文件</button></footer>
+    </div>
   </section>
 
   <section class="modal auth-modal" data-auth-modal role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" hidden>
@@ -430,11 +467,11 @@
 
   <input class="sr-only" type="file" accept=".csv,.json,.bib,.bibtex,.ris,application/json,text/csv,application/x-research-info-systems" data-import-input>
   <div class="toast-region" aria-live="polite" aria-atomic="true" data-toast-region></div>
-  <script src="cost-policy.js"></script>
   <script src="literature-core.js"></script>
   <script src="workspace-core.js"></script>
   <script src="experience-core.js"></script>
   <script src="story-core.js"></script>
+  <script src="decision-core.js"></script>
   <script src="account-core.js"></script>
   <script src="script.js"></script>
 </body>
