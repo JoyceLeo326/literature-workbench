@@ -15,6 +15,7 @@ const files = [
   'account-core.js',
   'experience-core.js',
   'story-core.js',
+  'visual-story-v3.js',
   'decision-core.js',
   'literature-core.js',
   'workspace-core.js',
