@@ -52,7 +52,9 @@
 
 ## 图像叙事
 
-`assets/story/` 中的 24 张 WebP 画面陪着研究从提问走到交付。它们不是单独摆放的插画：研究阶段、题录数量、核验进度和反馈变化后，当前章节与下一步也会变化。品牌标志、色彩、构图规则和图像真实性边界记录在 [`docs/visual-identity.md`](docs/visual-identity.md)。
+`assets/story/` 中原有的 24 张 WebP 画面继续承担会随项目状态变化的六章主线。第二轮新增的 `assets/story-v3/` 里还有 50 个具体研究现场：前 20 个直接出现在任务总览，覆盖界定问题与检索筛选；其余按提取证据、综合确认和交付回流分组按需加载。它们不是装饰性瀑布流，每张都写清人物、处境、动作、产品状态与结果，并由运行时读取 `manifest.json` 后接入旅程。
+
+50 条生成提示、真实 alt、消费位置、尺寸和人工抽检记录都保存在 [`assets/story-v3/manifest.json`](assets/story-v3/manifest.json)。统一角色、色彩、构图规则与图像真实性边界记录在 [`docs/visual-identity.md`](docs/visual-identity.md)。
 
 ## 本地运行
 
@@ -78,7 +80,9 @@ node --check workspace-core.js
 node --check account-core.js
 node --check experience-core.js
 node --check story-core.js
+node --check visual-story-v3.js
 node --check decision-core.js
+node qa/validate-visual-story.mjs --root . --manifest assets/story-v3/manifest.json
 node scripts/build-pages.mjs
 node scripts/scan-secrets.mjs . pages-dist
 ```
@@ -103,8 +107,9 @@ node scripts/scan-secrets.mjs . pages-dist
 ├── decision-core.js          # 三策略、取舍与版本决策
 ├── workspace-core.js         # 项目工作区与数据规范化
 ├── story-core.js             # 24 幕叙事路由
+├── visual-story-v3.js        # 读取 50 个研究现场并按阶段呈现
 ├── account-core.js           # 可选账户界面的本地状态
-├── assets/                   # 品牌、图标与故事画面
+├── assets/                   # 品牌、原 24 幕与新增 50 个研究现场
 ├── docs/                     # 视觉与产品说明
 ├── tests/                    # Node.js 行为测试
 ├── scripts/                  # Pages 构建与密钥扫描

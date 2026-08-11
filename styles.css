@@ -217,6 +217,25 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .story-scene strong { margin-top: 5px; font-size: 11px; line-height: 1.45; }
 .story-scene:hover, .story-scene.is-active { background: #194b47; color: #fff; }
 .story-scene.is-active { box-shadow: inset 0 -4px 0 var(--red); }
+.field-stories { overflow: hidden; padding: 30px; background: #f7f3e9; }
+.field-stories-heading { display: flex; justify-content: space-between; gap: 24px; align-items: end; }
+.field-stories-heading > div { max-width: 760px; }
+.field-stories-heading h3 { margin: 7px 0 8px; color: var(--green-800); font: 700 clamp(24px, 3vw, 38px)/1.18 "Songti SC", "STSong", serif; }
+.field-stories-heading p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.field-story-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 12px; }
+.field-story-control { min-height: 44px; padding: 10px 15px; border: 1px solid rgba(18,60,58,.18); border-radius: 999px; background: rgba(255,255,255,.8); color: var(--green-800); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.field-story-control:hover, .field-story-control.is-active { border-color: var(--green-600); background: var(--green-800); color: #fff; }
+.field-story-control:focus-visible { outline: 3px solid #d9a958; outline-offset: 3px; }
+.field-story-status { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+.field-story-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.field-story-card { min-width: 0; overflow: hidden; border: 1px solid rgba(18,60,58,.13); border-radius: 12px; background: #fff; box-shadow: 0 12px 28px rgba(18,60,58,.07); }
+.field-story-card figure { aspect-ratio: 3 / 2; overflow: hidden; margin: 0; background: #dce7e1; }
+.field-story-card img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.field-story-card-copy { padding: 16px; }
+.field-story-card-copy span { color: var(--red); font-size: 10px; font-weight: 900; letter-spacing: .08em; }
+.field-story-card-copy h4 { min-height: 48px; margin: 7px 0; color: var(--green-800); font-size: 16px; line-height: 1.45; }
+.field-story-card-copy p { margin: 6px 0 12px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.field-story-card-copy strong { color: var(--green-600); font-size: 11px; }
 
 .overview-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .75fr); gap: 22px; margin-bottom: 22px; }
 .workflow-panel, .today-panel, .recent-panel { padding: 24px; }
@@ -623,6 +642,7 @@ input[type="checkbox"]:focus-visible { outline: 3px solid rgba(29,91,77,.2); out
   .story-layout { grid-template-columns: minmax(0, 1.35fr) minmax(290px, .75fr); }
   .story-chapters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .story-scenes { grid-template-columns: 1fr 1fr; }
+  .field-story-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .priority-queue { grid-template-columns: 1fr 1fr; }
 }
 
@@ -742,6 +762,12 @@ input[type="checkbox"]:focus-visible { outline: 3px solid rgba(29,91,77,.2); out
   .story-scenes { grid-template-columns: 1fr 1fr; }
   .story-scene { min-height: 104px; grid-template-columns: 64px minmax(0, 1fr); gap: 9px; padding: 9px; }
   .story-scene img { width: 64px; height: 76px; }
+  .field-stories { padding: 22px 18px; }
+  .field-stories-heading { align-items: stretch; flex-direction: column; }
+  .field-stories-heading .button { width: 100%; }
+  .field-story-filters { display: grid; grid-template-columns: 1fr 1fr; }
+  .field-story-grid { grid-template-columns: 1fr; }
+  .field-story-card-copy h4 { min-height: 0; }
   .profile-fields { grid-template-columns: 1fr !important; }
   .welcome-row .text-link { margin-top: 12px; }
   .welcome-row h2, .page-intro h2 { font-size: 31px; }
@@ -805,6 +831,12 @@ input[type="checkbox"]:focus-visible { outline: 3px solid rgba(29,91,77,.2); out
   .export-facts { grid-template-columns: 1fr 1fr; }
   .export-confirm-body footer { flex-direction: column-reverse; }
   .export-confirm-body footer .button { width: 100%; }
+}
+
+@media (max-width: 430px) {
+  .field-story-grid { grid-template-columns: minmax(0, 1fr); }
+  .field-story-filters { grid-template-columns: 1fr; }
+  .field-story-control { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

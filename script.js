@@ -11,6 +11,7 @@
   var Account = window.LitpathAccount;
   var Experience = window.LitpathExperience;
   var Story = window.LitpathStory;
+  var VisualStory = window.LitpathVisualStoryV3;
   var Decision = window.LitpathDecision;
   var selectedIds = new Set();
   var pendingDelete = null;
@@ -23,6 +24,9 @@
   var storyProjectId = '';
   var activeStoryChapterId = '';
   var activeStorySceneId = '';
+  var fieldStoryAssets = [];
+  var fieldStoryPhase = 'core';
+  var fieldStoryExpanded = false;
 
   function $(selector, root) { return (root || document).querySelector(selector); }
   function $$(selector, root) { return Array.prototype.slice.call((root || document).querySelectorAll(selector)); }
@@ -940,6 +944,53 @@
     fillForms();
   }
 
+  function renderFieldStories() {
+    var grid = $('[data-field-story-grid]');
+    var status = $('[data-field-story-status]');
+    if (!grid || !fieldStoryAssets.length) return;
+    var visible = fieldStoryAssets.filter(function (asset) {
+      if (fieldStoryPhase === 'core') return fieldStoryExpanded || asset.coreReachable;
+      return asset.phase === fieldStoryPhase;
+    });
+    grid.replaceChildren();
+    visible.forEach(function (asset, index) {
+      var card = document.createElement('article');
+      card.className = 'field-story-card';
+      card.setAttribute('aria-labelledby', 'field-story-title-' + asset.id);
+      var figure = document.createElement('figure');
+      var image = document.createElement('img');
+      Object.assign(image, { src: asset.file, alt: asset.alt, loading: 'lazy', decoding: 'async', width: 768, height: 512 });
+      figure.appendChild(image);
+      card.innerHTML = '<div class="field-story-card-copy"><span>' + escapeHTML(VisualStory.phaseLabel(asset.phase)) + ' · ' + String(index + 1).padStart(2, '0') + '</span>' +
+        '<h4 id="field-story-title-' + escapeHTML(asset.id) + '">' + escapeHTML(asset.title) + '</h4>' +
+        '<p>' + escapeHTML(asset.situation) + '</p>' +
+        '<strong>这一步之后</strong><p>' + escapeHTML(asset.outcome) + '</p></div>';
+      card.prepend(figure);
+      grid.appendChild(card);
+    });
+    status.textContent = '当前展示 ' + visible.length + ' / ' + fieldStoryAssets.length + ' 个现场。图片会在接近视口时加载。';
+    $$('[data-field-story-filter]').forEach(function (button) {
+      var active = button.getAttribute('data-field-story-filter') === fieldStoryPhase;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    var more = $('[data-field-story-more]');
+    more.hidden = fieldStoryPhase !== 'core';
+    more.setAttribute('aria-expanded', String(fieldStoryExpanded));
+    more.textContent = fieldStoryExpanded ? '收回核心 20 个现场' : '展开全部 50 个现场';
+  }
+
+  function loadFieldStories() {
+    if (!VisualStory) return;
+    VisualStory.load().then(function (manifest) {
+      fieldStoryAssets = manifest.assets;
+      renderFieldStories();
+    }).catch(function () {
+      var status = $('[data-field-story-status]');
+      if (status) status.textContent = '研究现场暂时没有加载成功，请刷新页面后重试。';
+    });
+  }
+
   function viewLabel(view) {
     return { overview: '任务总览', scope: '研究边界', queries: '检索式', library: '文献目录', screening: '筛选与综合', quality: '质量检查', delivery: '交付中心' }[view] || '任务总览';
   }
@@ -1734,6 +1785,18 @@
       }
       var storyAction = event.target.closest('[data-story-next-action]');
       if (storyAction) { showView(storyAction.getAttribute('data-target-view')); return; }
+      var fieldStoryFilter = event.target.closest('[data-field-story-filter]');
+      if (fieldStoryFilter) {
+        fieldStoryPhase = fieldStoryFilter.getAttribute('data-field-story-filter');
+        fieldStoryExpanded = false;
+        renderFieldStories();
+        return;
+      }
+      if (event.target.closest('[data-field-story-more]')) {
+        fieldStoryExpanded = !fieldStoryExpanded;
+        renderFieldStories();
+        return;
+      }
       var strategyChoice = event.target.closest('[data-strategy-choice]');
       if (strategyChoice) { chooseStrategy(strategyChoice.getAttribute('data-strategy-choice')); return; }
       if (event.target.closest('[data-confirm-strategy]')) { confirmStrategyDecision(); return; }
@@ -1920,6 +1983,7 @@
   fillForms();
   bindEvents();
   renderAll();
+  loadFieldStories();
   showView(location.hash.replace('#', '') || (projectHasScope() ? 'overview' : 'scope'));
   registerServiceWorker();
 })();

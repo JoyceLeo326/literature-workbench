@@ -184,6 +184,27 @@
             <div class="story-scenes" data-story-scenes aria-label="当前章节场景"></div>
           </article>
 
+          <article class="panel field-stories reveal" data-field-stories aria-labelledby="field-stories-title">
+            <div class="field-stories-heading">
+              <div>
+                <p class="eyebrow">50 个真实研究处境</p>
+                <h3 id="field-stories-title">从“我现在卡在哪里”进入，而不是从功能名开始。</h3>
+                <p>前 20 个现场沿着界定问题与检索筛选展开；其余按提取、综合与交付阶段打开。每张画面都对应一个动作和可带走的结果。</p>
+              </div>
+              <button class="button button-secondary field-story-control" type="button" data-field-story-more aria-expanded="false">展开全部 50 个现场</button>
+            </div>
+            <div class="field-story-filters" data-field-story-filters role="toolbar" aria-label="按研究阶段查看现场">
+              <button class="field-story-control is-active" type="button" data-field-story-filter="core" aria-pressed="true">核心路径 · 20</button>
+              <button class="field-story-control" type="button" data-field-story-filter="orient" aria-pressed="false">界定问题</button>
+              <button class="field-story-control" type="button" data-field-story-filter="search" aria-pressed="false">检索筛选</button>
+              <button class="field-story-control" type="button" data-field-story-filter="evidence" aria-pressed="false">提取证据</button>
+              <button class="field-story-control" type="button" data-field-story-filter="synthesize" aria-pressed="false">综合确认</button>
+              <button class="field-story-control" type="button" data-field-story-filter="deliver" aria-pressed="false">交付回流</button>
+            </div>
+            <p class="field-story-status" data-field-story-status role="status">正在准备研究现场……</p>
+            <div class="field-story-grid" data-field-story-grid aria-live="polite"></div>
+          </article>
+
           <div class="overview-grid">
             <article class="panel workflow-panel reveal">
               <div class="panel-heading"><div><p class="eyebrow">当前流程</p><h3>从检索到交付</h3></div><span class="status-pill" data-stage-pill>准备检索</span></div>
@@ -508,6 +529,7 @@
   <script src="workspace-core.js"></script>
   <script src="experience-core.js"></script>
   <script src="story-core.js"></script>
+  <script src="visual-story-v3.js"></script>
   <script src="decision-core.js"></script>
   <script src="account-core.js"></script>
   <script src="script.js"></script>
