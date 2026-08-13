@@ -5,7 +5,6 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const workspacePath = path.join(root, 'workspace-core.js');
-const accountPath = path.join(root, 'account-core.js');
 
 test('creates a blank, traceable research project instead of seeded portfolio copy', () => {
   assert.equal(fs.existsSync(workspacePath), true, 'workspace-core.js must exist');
@@ -70,35 +69,14 @@ test('keeps demonstration records out of formal counts and delivery data', () =>
   assert.deepEqual(workspaceCore.formalRecords(records).map((record) => record.id), ['formal-1']);
 });
 
-test('creates and verifies a real same-device account credential', async () => {
-  assert.equal(fs.existsSync(accountPath), true, 'account-core.js must exist');
-  const accountCore = require(accountPath);
-  const account = await accountCore.createAccount({
-    displayName: '研究者',
-    email: 'Researcher@Example.com',
-    password: 'correct horse battery staple',
-    id: 'account-1',
-    salt: new Uint8Array(16).fill(7),
-    now: '2026-07-27T08:00:00.000Z'
-  });
-
-  assert.equal(account.email, 'researcher@example.com');
-  assert.equal(account.displayName, '研究者');
-  assert.equal(account.password, undefined);
-  assert.ok(account.passwordHash.length > 20);
-  assert.equal(await accountCore.verifyPassword(account, 'correct horse battery staple'), true);
-  assert.equal(await accountCore.verifyPassword(account, 'wrong password'), false);
-});
-
-test('exposes project and optional account actions without internal cost copy', () => {
+test('exposes truthful local project actions without internal cost or online-account copy', () => {
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const script = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
   const serviceWorker = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 
   assert.match(index, /data-project-switcher/);
   assert.match(index, /data-create-project/);
-  assert.match(index, /data-auth-login/);
-  assert.match(index, /data-auth-register/);
+  assert.doesNotMatch(index, /data-auth-(?:login|register|modal|guest|profile)/);
   assert.match(script, /formalRecords/);
   assert.doesNotMatch(index, /零固定成本|0 成本|无自动账单|COST_MODE|实现阶段/);
   assert.doesNotMatch(index, /data-load-demo|载入演示数据/);
@@ -106,7 +84,6 @@ test('exposes project and optional account actions without internal cost copy', 
   assert.doesNotMatch(script, /演示数据|本地录入/);
   assert.match(index, /data-import-trigger/);
   assert.match(index, /data-step="scope" role="button" tabindex="0"/);
-  assert.match(index, /register-suffix/);
   assert.match(script, /location\.hostname === '127\.0\.0\.1'/);
   assert.match(script, /addEventListener\('input'[\s\S]*queueScreeningSave/);
   assert.match(script, /isValidPublicationYear/);
