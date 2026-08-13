@@ -29,7 +29,7 @@
 
 1. 在“研究画像”中先确定研究阶段和交付目标；
 2. 在“研究边界”中写清问题、年份与纳入/排除条件；
-3. 查看三条策略，不只看排在前面的路线，也要读完每条路线主动放弃了什么；
+3. 保存边界后会直接进入三条策略决策台；不只看排在前面的路线，也要读完每条路线主动放弃了什么；
 4. 确认一条 V1 后进入题录区，至少录入一条可回到原文核验的记录；
 5. 完成一次筛选和一次证据提取，再回到策略区提交真实反馈；
 6. 对照 V1 与新提案的字段差异，确认后导出 Markdown 策略档案与完整 JSON 备份。
@@ -52,9 +52,7 @@
 
 ## 图像叙事
 
-`assets/story/` 中原有的 24 张 WebP 画面继续承担会随项目状态变化的六章主线。第二轮新增的 `assets/story-v3/` 里还有 50 个具体研究现场：前 20 个直接出现在任务总览，覆盖界定问题与检索筛选；其余按提取证据、综合确认和交付回流分组按需加载。它们不是装饰性瀑布流，每张都写清人物、处境、动作、产品状态与结果，并由运行时读取 `manifest.json` 后接入旅程。
-
-50 条生成提示、真实 alt、消费位置、尺寸和人工抽检记录都保存在 [`assets/story-v3/manifest.json`](assets/story-v3/manifest.json)。统一角色、色彩、构图规则与图像真实性边界记录在 [`docs/visual-identity.md`](docs/visual-identity.md)。
+`assets/story/` 中的 24 张 WebP 画面承担会随项目状态变化的六章主线，用来解释当前步骤、风险和下一步行动。图像数量不作为产品完成度；主路径是否能从研究边界走到人工确认与可继续编辑的交付物，才是验收标准。统一角色、色彩、构图规则与图像真实性边界记录在 [`docs/visual-identity.md`](docs/visual-identity.md)。
 
 ## 本地运行
 
@@ -77,12 +75,9 @@ node --test tests/*.test.cjs
 node --check script.js
 node --check literature-core.js
 node --check workspace-core.js
-node --check account-core.js
 node --check experience-core.js
 node --check story-core.js
-node --check visual-story-v3.js
 node --check decision-core.js
-node qa/validate-visual-story.mjs --root . --manifest assets/story-v3/manifest.json
 node scripts/build-pages.mjs
 node scripts/scan-secrets.mjs . pages-dist
 ```
@@ -107,9 +102,7 @@ node scripts/scan-secrets.mjs . pages-dist
 ├── decision-core.js          # 三策略、取舍与版本决策
 ├── workspace-core.js         # 项目工作区与数据规范化
 ├── story-core.js             # 24 幕叙事路由
-├── visual-story-v3.js        # 读取 50 个研究现场并按阶段呈现
-├── account-core.js           # 可选账户界面的本地状态
-├── assets/                   # 品牌、原 24 幕与新增 50 个研究现场
+├── assets/                   # 品牌与六章 24 幕主线画面
 ├── docs/                     # 视觉与产品说明
 ├── tests/                    # Node.js 行为测试
 ├── scripts/                  # Pages 构建与密钥扫描
@@ -119,7 +112,7 @@ node scripts/scan-secrets.mjs . pages-dist
 ## 数据、隐私与安全
 
 - 项目数据保存在当前浏览器存储中；清理站点数据、隐私模式限制或更换浏览器配置文件都可能让本地数据不可恢复，请定期导出完整 JSON。
-- 账户入口是可选界面，公开静态版本不要求登录，也不提供跨设备云同步。
+- 公开静态版本不提供账户与跨设备云同步；项目只保存在当前浏览器，请定期导出完整 JSON。
 - 文径不会代替使用者填写来源、证据等级或研究结论，也不会主动上传文献、PDF 或项目数据。
 - 仓库中的 `.env.example` 只列出可选配置名；不要把真实 API Key、令牌或个人研究数据提交到 Git。
 - DOI 当前只做格式校验，不会联网补全元数据；原文与引用准确性必须由使用者核验。

@@ -12,10 +12,8 @@ const files = [
   'index.html',
   'styles.css',
   'script.js',
-  'account-core.js',
   'experience-core.js',
   'story-core.js',
-  'visual-story-v3.js',
   'decision-core.js',
   'literature-core.js',
   'workspace-core.js',
@@ -29,8 +27,9 @@ fs.mkdirSync(output, { recursive: true });
 for (const relative of files) {
   fs.copyFileSync(path.join(root, relative), path.join(output, relative));
 }
-const assets = path.join(root, 'assets');
-if (fs.existsSync(assets)) fs.cpSync(assets, path.join(output, 'assets'), { recursive: true });
+for (const directory of ['brand', 'story']) {
+  fs.cpSync(path.join(root, 'assets', directory), path.join(output, 'assets', directory), { recursive: true });
+}
 fs.copyFileSync(path.join(root, 'index.html'), path.join(output, '404.html'));
 fs.writeFileSync(path.join(output, '.nojekyll'), '');
 console.log(`Pages artifact ready: ${files.length + 3} entries`);

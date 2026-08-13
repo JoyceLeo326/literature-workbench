@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#123c3a">
-  <meta name="description" content="文径是一套覆盖研究边界、检索留痕、题录筛选、证据综合、质量检查与研究交付的文献工作台。">
+  <meta name="description" content="写清研究边界，比较三条检索路线，保留题录筛选、证据取舍与人工确认，形成可复查、可继续编辑的文献研究底稿。">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'self' blob:; manifest-src 'self'">
   <link rel="canonical" href="https://joyceleo326.github.io/literature-workbench/">
   <meta property="og:type" content="website">
@@ -84,14 +84,6 @@
           <button class="icon-button create-project-button" type="button" data-create-project aria-label="新建研究项目" title="新建研究项目"><svg><use href="#i-plus"/></svg></button>
           <button class="button button-secondary" type="button" data-import-trigger><svg><use href="#i-upload"/></svg><span>导入目录</span></button>
           <button class="button button-primary" type="button" data-add-record><svg><use href="#i-plus"/></svg><span>添加文献</span></button>
-          <div class="account-entry" data-auth-guest>
-            <button class="account-link" type="button" data-auth-login aria-label="登录或注册"><span>登录</span><span class="register-suffix"> / 注册</span></button>
-            <button class="button button-secondary account-register" type="button" data-auth-register>注册</button>
-          </div>
-          <div class="profile-chip" data-auth-profile hidden>
-            <span data-auth-avatar>研</span><strong data-auth-name>研究者</strong>
-            <button type="button" data-auth-logout>退出</button>
-          </div>
         </div>
       </header>
 
@@ -184,27 +176,6 @@
             <div class="story-scenes" data-story-scenes aria-label="当前章节场景"></div>
           </article>
 
-          <article class="panel field-stories reveal" data-field-stories aria-labelledby="field-stories-title">
-            <div class="field-stories-heading">
-              <div>
-                <p class="eyebrow">50 个真实研究处境</p>
-                <h3 id="field-stories-title">从“我现在卡在哪里”进入，而不是从功能名开始。</h3>
-                <p>前 20 个现场沿着界定问题与检索筛选展开；其余按提取、综合与交付阶段打开。每张画面都对应一个动作和可带走的结果。</p>
-              </div>
-              <button class="button button-secondary field-story-control" type="button" data-field-story-more aria-expanded="false">展开全部 50 个现场</button>
-            </div>
-            <div class="field-story-filters" data-field-story-filters role="toolbar" aria-label="按研究阶段查看现场">
-              <button class="field-story-control is-active" type="button" data-field-story-filter="core" aria-pressed="true">核心路径 · 20</button>
-              <button class="field-story-control" type="button" data-field-story-filter="orient" aria-pressed="false">界定问题</button>
-              <button class="field-story-control" type="button" data-field-story-filter="search" aria-pressed="false">检索筛选</button>
-              <button class="field-story-control" type="button" data-field-story-filter="evidence" aria-pressed="false">提取证据</button>
-              <button class="field-story-control" type="button" data-field-story-filter="synthesize" aria-pressed="false">综合确认</button>
-              <button class="field-story-control" type="button" data-field-story-filter="deliver" aria-pressed="false">交付回流</button>
-            </div>
-            <p class="field-story-status" data-field-story-status role="status">正在准备研究现场……</p>
-            <div class="field-story-grid" data-field-story-grid aria-live="polite"></div>
-          </article>
-
           <div class="overview-grid">
             <article class="panel workflow-panel reveal">
               <div class="panel-heading"><div><p class="eyebrow">当前流程</p><h3>从检索到交付</h3></div><span class="status-pill" data-stage-pill>准备检索</span></div>
@@ -286,7 +257,7 @@
             </form>
 
             <div class="query-results">
-              <article class="panel strategy-panel strategy-desk reveal" data-strategy-desk aria-labelledby="strategy-title">
+              <article class="panel strategy-panel strategy-desk reveal" data-strategy-desk tabindex="-1" aria-labelledby="strategy-title">
                 <div class="strategy-heading">
                   <div><p class="eyebrow">研究策略决策台</p><h3 id="strategy-title" data-strategy-headline>三条路线，先看清取舍再确认</h3></div>
                   <span class="status-pill" data-strategy-language>中英并行</span>
@@ -445,10 +416,10 @@
 
   <nav class="mobile-nav" aria-label="移动端导航">
     <button class="is-active" type="button" data-nav="overview"><svg><use href="#i-grid"/></svg><span>总览</span></button>
+    <button type="button" data-nav="scope"><svg><use href="#i-scope"/></svg><span>边界</span></button>
     <button type="button" data-nav="queries"><svg><use href="#i-search"/></svg><span>检索</span></button>
     <button type="button" data-nav="library"><svg><use href="#i-library"/></svg><span>目录</span></button>
     <button type="button" data-nav="screening"><svg><use href="#i-filter"/></svg><span>综合</span></button>
-    <button type="button" data-nav="quality"><svg><use href="#i-check"/></svg><span>质检</span></button>
     <button type="button" data-nav="delivery"><svg><use href="#i-package"/></svg><span>交付</span></button>
   </nav>
 
@@ -499,26 +470,6 @@
     </div>
   </section>
 
-  <section class="modal auth-modal" data-auth-modal role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" hidden>
-    <header><div><p class="eyebrow">ACCOUNT</p><h2 id="auth-modal-title">登录文径</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="关闭"><svg><use href="#i-close"/></svg></button></header>
-    <div class="auth-tabs" role="tablist" aria-label="账户操作">
-      <button class="is-active" type="button" role="tab" aria-selected="true" data-auth-tab="login">登录</button>
-      <button type="button" role="tab" aria-selected="false" data-auth-tab="register">注册</button>
-    </div>
-    <form data-login-form>
-      <div class="field"><label for="login-email">邮箱</label><input id="login-email" name="email" type="email" autocomplete="username" required></div>
-      <div class="field"><label for="login-password">密码</label><input id="login-password" name="password" type="password" autocomplete="current-password" required></div>
-      <button class="button button-primary full" type="submit">登录</button>
-    </form>
-    <form data-register-form hidden>
-      <div class="field"><label for="register-name">姓名或昵称</label><input id="register-name" name="displayName" autocomplete="name" required maxlength="40"></div>
-      <div class="field"><label for="register-email">邮箱</label><input id="register-email" name="email" type="email" autocomplete="username" required></div>
-      <div class="field"><label for="register-password">密码</label><input id="register-password" name="password" type="password" autocomplete="new-password" minlength="10" required><small>至少 10 个字符</small></div>
-      <button class="button button-primary full" type="submit">创建账户</button>
-    </form>
-    <p class="auth-note">登录后可按账户整理研究项目；重要节点可随时导出备份。</p>
-  </section>
-
   <section class="modal confirm-modal" data-confirm-modal role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
     <span class="confirm-icon"><svg><use href="#i-alert"/></svg></span><h2 id="confirm-title">删除这些记录？</h2><p data-confirm-copy>删除后无法撤销。建议先导出 JSON 备份。</p><footer><button class="button button-secondary" type="button" data-cancel-confirm>取消</button><button class="button button-danger" type="button" data-confirm-delete>删除记录</button></footer>
   </section>
@@ -529,9 +480,7 @@
   <script src="workspace-core.js"></script>
   <script src="experience-core.js"></script>
   <script src="story-core.js"></script>
-  <script src="visual-story-v3.js"></script>
   <script src="decision-core.js"></script>
-  <script src="account-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

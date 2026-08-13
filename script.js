@@ -3,15 +3,12 @@
 
   var LEGACY_STORAGE_KEY = 'litpath-workbench-v1';
   var WORKSPACE_STORAGE_KEY = 'litpath-workspaces-v1';
-  var ACCOUNT_STORAGE_KEY = 'litpath-local-accounts-v1';
-  var SESSION_ACCOUNT_KEY = 'litpath-account-session-v1';
+  var PREVIOUS_ACCOUNT_SESSION_KEY = 'litpath-account-session-v1';
   var VERSION = 2;
   var Synthesis = window.LitpathSynthesis;
   var Workspace = window.LitpathWorkspace;
-  var Account = window.LitpathAccount;
   var Experience = window.LitpathExperience;
   var Story = window.LitpathStory;
-  var VisualStory = window.LitpathVisualStoryV3;
   var Decision = window.LitpathDecision;
   var selectedIds = new Set();
   var pendingDelete = null;
@@ -24,9 +21,6 @@
   var storyProjectId = '';
   var activeStoryChapterId = '';
   var activeStorySceneId = '';
-  var fieldStoryAssets = [];
-  var fieldStoryPhase = 'core';
-  var fieldStoryExpanded = false;
 
   function $(selector, root) { return (root || document).querySelector(selector); }
   function $$(selector, root) { return Array.prototype.slice.call((root || document).querySelectorAll(selector)); }
@@ -63,18 +57,16 @@
     return Workspace.createProjectState();
   }
 
-  function activeAccountId() {
-    return sessionStorage.getItem(SESSION_ACCOUNT_KEY) || 'guest';
-  }
-
   function scopedWorkspaceKey() {
-    return WORKSPACE_STORAGE_KEY + ':' + activeAccountId();
+    return WORKSPACE_STORAGE_KEY;
   }
 
   function loadWorkspace() {
     try {
-      var saved = JSON.parse(localStorage.getItem(scopedWorkspaceKey()) || 'null');
-      var legacy = activeAccountId() === 'guest' ? JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || 'null') : null;
+      var previousAccountId = sessionStorage.getItem(PREVIOUS_ACCOUNT_SESSION_KEY) || 'guest';
+      var previousScopedKey = WORKSPACE_STORAGE_KEY + ':' + previousAccountId;
+      var saved = JSON.parse(localStorage.getItem(scopedWorkspaceKey()) || localStorage.getItem(previousScopedKey) || localStorage.getItem(WORKSPACE_STORAGE_KEY + ':guest') || 'null');
+      var legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || 'null');
       var normalized = Workspace.normalizeWorkspace(saved, legacy);
       normalized.projects = normalized.projects.map(function (project) {
         project.records = normalizeRecordList(project.records);
@@ -924,7 +916,6 @@
       return '<option value="' + escapeHTML(project.id) + '"' + (project.id === state.id ? ' selected' : '') + '>' + escapeHTML(title) + '</option>';
     }).join('');
     switcher.value = state.id;
-    renderAccount();
   }
 
   function renderAll() {
@@ -942,53 +933,6 @@
     renderQuality();
     renderSearchLogs();
     fillForms();
-  }
-
-  function renderFieldStories() {
-    var grid = $('[data-field-story-grid]');
-    var status = $('[data-field-story-status]');
-    if (!grid || !fieldStoryAssets.length) return;
-    var visible = fieldStoryAssets.filter(function (asset) {
-      if (fieldStoryPhase === 'core') return fieldStoryExpanded || asset.coreReachable;
-      return asset.phase === fieldStoryPhase;
-    });
-    grid.replaceChildren();
-    visible.forEach(function (asset, index) {
-      var card = document.createElement('article');
-      card.className = 'field-story-card';
-      card.setAttribute('aria-labelledby', 'field-story-title-' + asset.id);
-      var figure = document.createElement('figure');
-      var image = document.createElement('img');
-      Object.assign(image, { src: asset.file, alt: asset.alt, loading: 'lazy', decoding: 'async', width: 768, height: 512 });
-      figure.appendChild(image);
-      card.innerHTML = '<div class="field-story-card-copy"><span>' + escapeHTML(VisualStory.phaseLabel(asset.phase)) + ' · ' + String(index + 1).padStart(2, '0') + '</span>' +
-        '<h4 id="field-story-title-' + escapeHTML(asset.id) + '">' + escapeHTML(asset.title) + '</h4>' +
-        '<p>' + escapeHTML(asset.situation) + '</p>' +
-        '<strong>这一步之后</strong><p>' + escapeHTML(asset.outcome) + '</p></div>';
-      card.prepend(figure);
-      grid.appendChild(card);
-    });
-    status.textContent = '当前展示 ' + visible.length + ' / ' + fieldStoryAssets.length + ' 个现场。图片会在接近视口时加载。';
-    $$('[data-field-story-filter]').forEach(function (button) {
-      var active = button.getAttribute('data-field-story-filter') === fieldStoryPhase;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-pressed', String(active));
-    });
-    var more = $('[data-field-story-more]');
-    more.hidden = fieldStoryPhase !== 'core';
-    more.setAttribute('aria-expanded', String(fieldStoryExpanded));
-    more.textContent = fieldStoryExpanded ? '收回核心 20 个现场' : '展开全部 50 个现场';
-  }
-
-  function loadFieldStories() {
-    if (!VisualStory) return;
-    VisualStory.load().then(function (manifest) {
-      fieldStoryAssets = manifest.assets;
-      renderFieldStories();
-    }).catch(function () {
-      var status = $('[data-field-story-status]');
-      if (status) status.textContent = '研究现场暂时没有加载成功，请刷新页面后重试。';
-    });
   }
 
   function viewLabel(view) {
@@ -1101,7 +1045,7 @@
   }
 
   function closeUtilityDialogs() {
-    $$('.compact-modal.is-visible, .auth-modal.is-visible').forEach(closeDialog);
+    $$('.compact-modal.is-visible').forEach(closeDialog);
   }
 
   function openProjectDialog() {
@@ -1171,126 +1115,6 @@
     renderAll();
     showView('scope');
     toast('研究项目已创建');
-  }
-
-  function loadAccounts() {
-    try {
-      var accounts = JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || '[]');
-      return Array.isArray(accounts) ? accounts : [];
-    } catch (error) {
-      return [];
-    }
-  }
-
-  function currentAccount() {
-    var id = activeAccountId();
-    return id === 'guest' ? null : loadAccounts().find(function (account) { return account.id === id; }) || null;
-  }
-
-  function renderAccount() {
-    var account = currentAccount();
-    $('[data-auth-guest]').hidden = Boolean(account);
-    $('[data-auth-profile]').hidden = !account;
-    if (!account) return;
-    $('[data-auth-name]').textContent = account.displayName;
-    $('[data-auth-avatar]').textContent = account.displayName.slice(0, 1).toUpperCase();
-  }
-
-  function setAuthMode(mode) {
-    var isLogin = mode !== 'register';
-    $('[data-login-form]').hidden = !isLogin;
-    $('[data-register-form]').hidden = isLogin;
-    $('#auth-modal-title').textContent = isLogin ? '登录文径' : '创建账户';
-    $$('[data-auth-tab]').forEach(function (button) {
-      var active = button.getAttribute('data-auth-tab') === (isLogin ? 'login' : 'register');
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-selected', String(active));
-    });
-  }
-
-  function openAuthDialog(mode) {
-    setAuthMode(mode);
-    $('[data-login-form]').reset();
-    $('[data-register-form]').reset();
-    openDialog('[data-auth-modal]', mode === 'register' ? '#register-name' : '#login-email');
-  }
-
-  function activateAccount(account, keepCurrentWorkspace) {
-    saveState();
-    dirtyForms.clear();
-    renderSaveStatus();
-    sessionStorage.setItem(SESSION_ACCOUNT_KEY, account.id);
-    if (keepCurrentWorkspace) {
-      localStorage.setItem(scopedWorkspaceKey(), JSON.stringify(workspace));
-    } else {
-      workspace = loadWorkspace();
-      state = Workspace.getActiveProject(workspace);
-    }
-    selectedIds.clear();
-    closeDialog($('[data-auth-modal]'));
-    renderAll();
-    showView(projectHasScope() ? 'overview' : 'scope');
-  }
-
-  async function registerAccount(event) {
-    event.preventDefault();
-    if (!confirmPendingTransition('当前研究表单有未提交更改。仍要创建并切换到账户空间吗？')) return;
-    var data = formDataObject(event.currentTarget);
-    var accounts = loadAccounts();
-    var email = Account.normalizeEmail(data.email);
-    if (accounts.some(function (account) { return account.email === email; })) {
-      toast('该邮箱已注册，请直接登录。', 'error');
-      setAuthMode('login');
-      $('[data-login-form]').elements.email.value = email;
-      return;
-    }
-    var submit = $('button[type="submit"]', event.currentTarget);
-    submit.disabled = true;
-    submit.textContent = '正在创建…';
-    try {
-      var account = await Account.createAccount(data);
-      accounts.push(account);
-      localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accounts));
-      activateAccount(account, true);
-      toast('账户已创建');
-    } catch (error) {
-      toast(error.message || '账户创建失败。', 'error');
-    } finally {
-      submit.disabled = false;
-      submit.textContent = '创建账户';
-    }
-  }
-
-  async function loginAccount(event) {
-    event.preventDefault();
-    if (!confirmPendingTransition('当前研究表单有未提交更改。仍要切换到账户空间吗？')) return;
-    var data = formDataObject(event.currentTarget);
-    var account = loadAccounts().find(function (item) { return item.email === Account.normalizeEmail(data.email); });
-    var submit = $('button[type="submit"]', event.currentTarget);
-    submit.disabled = true;
-    submit.textContent = '正在登录…';
-    try {
-      if (!account || !(await Account.verifyPassword(account, data.password))) throw new Error('邮箱或密码不正确。');
-      activateAccount(account, false);
-      toast('欢迎回来，' + account.displayName);
-    } catch (error) {
-      toast(error.message || '登录失败。', 'error');
-    } finally {
-      submit.disabled = false;
-      submit.textContent = '登录';
-    }
-  }
-
-  function logoutAccount() {
-    if (!confirmDiscardAll('当前研究表单有未提交更改。仍要退出账户吗？')) return;
-    saveState();
-    sessionStorage.removeItem(SESSION_ACCOUNT_KEY);
-    workspace = loadWorkspace();
-    state = Workspace.getActiveProject(workspace);
-    selectedIds.clear();
-    renderAll();
-    showView(projectHasScope() ? 'overview' : 'scope');
-    toast('已退出账户');
   }
 
   function formDataObject(form) {
@@ -1785,28 +1609,11 @@
       }
       var storyAction = event.target.closest('[data-story-next-action]');
       if (storyAction) { showView(storyAction.getAttribute('data-target-view')); return; }
-      var fieldStoryFilter = event.target.closest('[data-field-story-filter]');
-      if (fieldStoryFilter) {
-        fieldStoryPhase = fieldStoryFilter.getAttribute('data-field-story-filter');
-        fieldStoryExpanded = false;
-        renderFieldStories();
-        return;
-      }
-      if (event.target.closest('[data-field-story-more]')) {
-        fieldStoryExpanded = !fieldStoryExpanded;
-        renderFieldStories();
-        return;
-      }
       var strategyChoice = event.target.closest('[data-strategy-choice]');
       if (strategyChoice) { chooseStrategy(strategyChoice.getAttribute('data-strategy-choice')); return; }
       if (event.target.closest('[data-confirm-strategy]')) { confirmStrategyDecision(); return; }
       if (event.target.closest('[data-menu]')) { $('#sidebar').classList.toggle('is-open'); return; }
       if (event.target.closest('[data-create-project]')) { openProjectDialog(); return; }
-      if (event.target.closest('[data-auth-login]')) { openAuthDialog('login'); return; }
-      if (event.target.closest('[data-auth-register]')) { openAuthDialog('register'); return; }
-      if (event.target.closest('[data-auth-logout]')) { logoutAccount(); return; }
-      var authTab = event.target.closest('[data-auth-tab]');
-      if (authTab) { setAuthMode(authTab.getAttribute('data-auth-tab')); return; }
       if (event.target.closest('[data-close-dialog]')) { closeUtilityDialogs(); return; }
       if (event.target.closest('[data-add-record]')) { openRecordModal(); return; }
       if (event.target.closest('[data-close-modal]')) { closeRecordModal(); return; }
@@ -1863,8 +1670,6 @@
     $('[data-record-form]').addEventListener('submit', saveRecord);
     $('[data-project-form]').addEventListener('submit', createProject);
     $('[data-search-log-form]').addEventListener('submit', saveSearchLog);
-    $('[data-login-form]').addEventListener('submit', loginAccount);
-    $('[data-register-form]').addEventListener('submit', registerAccount);
     $('[data-project-switcher]').addEventListener('change', function (event) { switchProject(event.target.value); });
     $('[data-story-feedback-form]').addEventListener('submit', function (event) {
       event.preventDefault();
@@ -1887,7 +1692,13 @@
         types: $$('input[name="types"]:checked', form).map(function (input) { return input.value; })
       });
       clearFormDirty(form);
-      saveState(); renderAll(); toast('研究边界已保存');
+      saveState();
+      renderAll();
+      showView('queries');
+      var strategyDesk = $('[data-strategy-desk]');
+      strategyDesk.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      strategyDesk.focus({ preventScroll: true });
+      toast('研究边界已保存，请比较三条路线');
     });
     $('[data-query-form]').addEventListener('submit', function (event) {
       event.preventDefault();
@@ -1949,7 +1760,7 @@
       if (event.key !== 'Escape') return;
       if (!$('[data-record-modal]').hidden) closeRecordModal();
       else if (!$('[data-confirm-modal]').hidden) closeConfirm();
-      else if ($('.compact-modal.is-visible, .auth-modal.is-visible')) closeUtilityDialogs();
+      else if ($('.compact-modal.is-visible')) closeUtilityDialogs();
       else if ($('#sidebar').classList.contains('is-open')) {
         $('#sidebar').classList.remove('is-open');
         $('[data-menu]').focus();
@@ -1983,7 +1794,6 @@
   fillForms();
   bindEvents();
   renderAll();
-  loadFieldStories();
   showView(location.hash.replace('#', '') || (projectHasScope() ? 'overview' : 'scope'));
   registerServiceWorker();
 })();
