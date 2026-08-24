@@ -21,6 +21,29 @@
   var storyProjectId = '';
   var activeStoryChapterId = '';
   var activeStorySceneId = '';
+  var STARTER_TEMPLATES = {
+    coursework: {
+      researchStage: 'coursework', deliveryGoal: 'class-report', weeklyHours: 4,
+      cnTarget: 20, enTarget: 10, years: String(new Date().getFullYear() - 8) + '-' + String(new Date().getFullYear()),
+      include: '直接回答研究问题；来源和作者信息可追溯；能够回到原文核验。',
+      exclude: '新闻稿、营销材料、无明确作者或来源的内容；只提到关键词但不回答问题。',
+      types: ['期刊论文', '研究报告']
+    },
+    review: {
+      researchStage: 'thesis', deliveryGoal: 'review', weeklyHours: 8,
+      cnTarget: 30, enTarget: 30, years: String(new Date().getFullYear() - 10) + '-' + String(new Date().getFullYear()),
+      include: '直接讨论研究对象与核心关系；保留中英文来源、研究方法、限制与相反结果。',
+      exclude: '无法定位原文、重复发表、缺少研究设计说明或与研究问题只有弱关联的内容。',
+      types: ['期刊论文', '会议论文', '学位论文']
+    },
+    brief: {
+      researchStage: 'professional', deliveryGoal: 'proposal', weeklyHours: 5,
+      cnTarget: 16, enTarget: 8, years: String(new Date().getFullYear() - 5) + '-' + String(new Date().getFullYear()),
+      include: '与当前决策直接相关；结论、数据和适用范围可核验；优先一手来源与近期材料。',
+      exclude: '无法确认数据口径、缺少发布日期或来源、只给观点没有证据的内容。',
+      types: ['期刊论文', '研究报告']
+    }
+  };
 
   function $(selector, root) { return (root || document).querySelector(selector); }
   function $$(selector, root) { return Array.prototype.slice.call((root || document).querySelectorAll(selector)); }
@@ -368,6 +391,45 @@
 
   function projectHasScope() {
     return Boolean(state.project.title && state.project.topic && state.project.deadline);
+  }
+  function applyStarterTemplate(templateId) {
+    var template = STARTER_TEMPLATES[templateId];
+    if (!template) return;
+    state.project = Object.assign({}, state.project, template);
+    state.records = [];
+    clearFormDirty($('[data-scope-form]'));
+    saveState('研究骨架已准备');
+    renderAll();
+    showView('scope');
+    $('[data-scope-form] [name="title"]').focus();
+    toast('骨架已搭好，请写下你的真实问题');
+  }
+  function renderStartDesk() {
+    var started = projectHasScope();
+    var desk = $('[data-start-desk]');
+    if (desk) desk.hidden = started;
+    $$('[data-established-workspace]').forEach(function (element) { element.hidden = !started; });
+  }
+  function nextResearchAction() {
+    var advice = getAdvice();
+    var c = counts();
+    var screening = Synthesis.summarizeScreening(formalRecords());
+    if (!projectHasScope()) return { stage: '起步 · 定问题', progress: 8, title: '先把问题和交付写清楚', copy: '选一个研究场景，再补上真实主题、期限和纳入边界。', view: 'overview', action: '选择场景' };
+    if (!state.searchLogs.length) return { stage: '取证 · 留检索痕迹', progress: 24, title: '生成并记录第一轮检索', copy: '比较三条路线，确认取舍后再保存数据库与检索时间。', view: 'queries', action: '比较路线' };
+    if (!c.total) return { stage: '取证 · 建目录', progress: 38, title: '带回第一条可追溯题录', copy: '至少保留标题、作者、来源，以及能回到原文的 DOI 或链接。', view: 'library', action: '添加文献' };
+    if (screening.pending || screening.findings < screening.included) return { stage: '判断 · 筛选与综合', progress: 58, title: advice.title, copy: advice.copy, view: 'screening', action: '继续判断' };
+    if (analyzeQuality().length || c.verified < c.total) return { stage: '复核 · 回到原文', progress: 76, title: advice.title, copy: advice.copy, view: 'quality', action: '处理问题' };
+    return { stage: '交付 · 带走底稿', progress: 94, title: '最后检查交付包', copy: '确认来源、版本与终检清单，再下载可继续编辑的成果。', view: 'delivery', action: '检查交付' };
+  }
+  function renderProductCheckpoint() {
+    var next = nextResearchAction();
+    $('[data-checkpoint-stage]').textContent = next.stage;
+    $('[data-checkpoint-title]').textContent = next.title;
+    $('[data-checkpoint-copy]').textContent = Experience.personalizeAdvice(next.copy, currentProfile());
+    $('[data-checkpoint-progress]').style.width = next.progress + '%';
+    var action = $('[data-checkpoint-action]');
+    action.setAttribute('data-target-view', next.view);
+    action.firstChild.nodeValue = next.action + ' ';
   }
   function renderWorkflow() {
     var issues = analyzeQuality();
@@ -920,6 +982,7 @@
 
   function renderAll() {
     renderProjectMeta();
+    renderStartDesk();
     renderMetrics();
     renderWorkflow();
     renderAdvice();
@@ -933,6 +996,7 @@
     renderQuality();
     renderSearchLogs();
     fillForms();
+    renderProductCheckpoint();
   }
 
   function viewLabel(view) {
@@ -942,6 +1006,8 @@
     if (!$('[data-view="' + view + '"]')) view = 'overview';
     $$('.view').forEach(function (section) { section.classList.toggle('is-active', section.getAttribute('data-view') === view); });
     $$('[data-nav]').forEach(function (item) { item.classList.toggle('is-active', item.getAttribute('data-nav') === view); });
+    var chapterByView = { overview: 'start', scope: 'start', queries: 'evidence', library: 'evidence', screening: 'judge', quality: 'judge', delivery: 'deliver' };
+    $$('[data-mobile-chapter]').forEach(function (item) { item.classList.toggle('is-active', item.getAttribute('data-mobile-chapter') === chapterByView[view]); });
     $('[data-view-kicker]').textContent = viewLabel(view);
     $('#sidebar').classList.remove('is-open');
     window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
@@ -1613,6 +1679,11 @@
       if (strategyChoice) { chooseStrategy(strategyChoice.getAttribute('data-strategy-choice')); return; }
       if (event.target.closest('[data-confirm-strategy]')) { confirmStrategyDecision(); return; }
       if (event.target.closest('[data-menu]')) { $('#sidebar').classList.toggle('is-open'); return; }
+      var starter = event.target.closest('[data-start-template]');
+      if (starter) { applyStarterTemplate(starter.getAttribute('data-start-template')); return; }
+      if (event.target.closest('[data-start-blank]')) { showView('scope'); $('[data-scope-form] [name="title"]').focus(); return; }
+      var checkpointAction = event.target.closest('[data-checkpoint-action]');
+      if (checkpointAction) { showView(checkpointAction.getAttribute('data-target-view')); return; }
       if (event.target.closest('[data-create-project]')) { openProjectDialog(); return; }
       if (event.target.closest('[data-close-dialog]')) { closeUtilityDialogs(); return; }
       if (event.target.closest('[data-add-record]')) { openRecordModal(); return; }
@@ -1794,6 +1865,6 @@
   fillForms();
   bindEvents();
   renderAll();
-  showView(location.hash.replace('#', '') || (projectHasScope() ? 'overview' : 'scope'));
+  showView(location.hash.replace('#', '') || 'overview');
   registerServiceWorker();
 })();
