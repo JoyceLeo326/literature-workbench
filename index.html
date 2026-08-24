@@ -87,9 +87,39 @@
         </div>
       </header>
 
+      <aside class="product-checkpoint" data-product-checkpoint aria-live="polite">
+        <div class="checkpoint-progress" aria-hidden="true"><i data-checkpoint-progress></i></div>
+        <span class="checkpoint-stage" data-checkpoint-stage>起步 · 先写清问题</span>
+        <div class="checkpoint-copy">
+          <strong data-checkpoint-title>先选一个研究场景</strong>
+          <p data-checkpoint-copy>文径会搭好边界、证据与交付骨架，题录和判断仍由你确认。</p>
+        </div>
+        <button class="button button-dark" type="button" data-checkpoint-action data-target-view="overview">开始整理 <svg><use href="#i-arrow"/></svg></button>
+      </aside>
+
       <div class="view-stack">
         <section class="view is-active" data-view="overview" aria-labelledby="overview-title">
-          <div class="welcome-row reveal">
+          <article class="start-desk reveal" data-start-desk>
+            <div class="start-desk-copy">
+              <p class="eyebrow">从真实问题开始</p>
+              <h2>你要交的不是一堆链接，<br>而是一条站得住的研究路径。</h2>
+              <p>先选最接近的场景。文径只搭工作骨架，不替你编造文献、结论或来源。</p>
+              <button class="text-link" type="button" data-start-blank>我想从空白开始 <svg><use href="#i-arrow"/></svg></button>
+            </div>
+            <div class="start-template-grid" aria-label="选择研究场景">
+              <button class="start-template" type="button" data-start-template="coursework">
+                <span>01 · 课堂</span><strong>课程研究与汇报</strong><p>先形成能讲清楚、能回查来源的课堂底稿。</p><em>4 小时 / 周 · 30 篇起步</em>
+              </button>
+              <button class="start-template start-template-featured" type="button" data-start-template="review">
+                <span>02 · 论文</span><strong>开题与文献综述</strong><p>兼顾中英文来源、研究分歧与可复核的取舍。</p><em>8 小时 / 周 · 60 篇起步</em>
+              </button>
+              <button class="start-template" type="button" data-start-template="brief">
+                <span>03 · 工作</span><strong>调研与决策简报</strong><p>围绕一个具体判断，快速留下来源与反方证据。</p><em>5 小时 / 周 · 24 篇起步</em>
+              </button>
+            </div>
+          </article>
+
+          <div class="welcome-row reveal" data-established-workspace>
             <div>
               <p class="eyebrow">截至 <span data-deadline-label>2026年7月19日</span></p>
               <h2 id="overview-title" data-overview-title>把散落的文献，整理成一套可复查的研究底稿。</h2>
@@ -98,14 +128,14 @@
             <button class="text-link" type="button" data-nav="scope">检查任务边界 <svg><use href="#i-arrow"/></svg></button>
           </div>
 
-          <div class="metric-grid reveal" aria-label="任务进度">
+          <div class="metric-grid reveal" aria-label="任务进度" data-established-workspace>
             <article class="metric-card metric-primary"><span>总进度</span><strong><b data-total-count>0</b><small>/ <i data-total-target>0</i></small></strong><div class="meter"><i data-total-progress></i></div><p data-total-copy>尚未设置文献目标</p></article>
             <article class="metric-card"><span>中文文献</span><strong><b data-cn-count>0</b><small>/ <i data-cn-target>0</i></small></strong><div class="meter"><i data-cn-progress></i></div><p data-cn-copy>尚未设置中文目标</p></article>
             <article class="metric-card"><span>英文文献</span><strong><b data-en-count>0</b><small>/ <i data-en-target>0</i></small></strong><div class="meter"><i data-en-progress></i></div><p data-en-copy>尚未设置英文目标</p></article>
             <article class="metric-card"><span>已完成核验</span><strong><b data-verified-count>0</b><small>篇</small></strong><div class="meter"><i data-verified-progress></i></div><p data-verified-copy>等待核验</p></article>
           </div>
 
-          <article class="panel research-journey reveal" data-research-journey aria-live="polite">
+          <article class="panel research-journey reveal" data-research-journey data-established-workspace aria-live="polite">
             <div class="journey-heading">
               <div><p class="eyebrow">你的研究现场</p><h3>从问题出发，到证据落地</h3></div>
               <button class="text-link" type="button" data-nav="scope">调整研究节奏 <svg><use href="#i-arrow"/></svg></button>
@@ -113,7 +143,7 @@
             <div class="journey-grid" data-journey-grid></div>
           </article>
 
-          <article class="panel visual-story reveal" data-story-gallery aria-labelledby="story-title">
+          <article class="panel visual-story reveal" data-story-gallery data-established-workspace aria-labelledby="story-title">
             <div class="story-heading">
               <div>
                 <p class="eyebrow">一条研究路径 · 24 个现场</p>
@@ -176,7 +206,7 @@
             <div class="story-scenes" data-story-scenes aria-label="当前章节场景"></div>
           </article>
 
-          <div class="overview-grid">
+          <div class="overview-grid" data-established-workspace>
             <article class="panel workflow-panel reveal">
               <div class="panel-heading"><div><p class="eyebrow">当前流程</p><h3>从检索到交付</h3></div><span class="status-pill" data-stage-pill>准备检索</span></div>
               <ol class="workflow-steps">
@@ -200,7 +230,7 @@
             </article>
           </div>
 
-          <article class="panel recent-panel reveal">
+          <article class="panel recent-panel reveal" data-established-workspace>
             <div class="panel-heading"><div><p class="eyebrow">最近更新</p><h3>文献记录</h3></div><button class="text-link" type="button" data-nav="library">查看全部 <svg><use href="#i-arrow"/></svg></button></div>
             <div class="recent-list" data-recent-list></div>
           </article>
@@ -415,12 +445,11 @@
   </div>
 
   <nav class="mobile-nav" aria-label="移动端导航">
-    <button class="is-active" type="button" data-nav="overview"><svg><use href="#i-grid"/></svg><span>总览</span></button>
-    <button type="button" data-nav="scope"><svg><use href="#i-scope"/></svg><span>边界</span></button>
-    <button type="button" data-nav="queries"><svg><use href="#i-search"/></svg><span>检索</span></button>
-    <button type="button" data-nav="library"><svg><use href="#i-library"/></svg><span>目录</span></button>
-    <button type="button" data-nav="screening"><svg><use href="#i-filter"/></svg><span>综合</span></button>
-    <button type="button" data-nav="delivery"><svg><use href="#i-package"/></svg><span>交付</span></button>
+    <button class="is-active" type="button" data-mobile-chapter="start" data-nav="overview"><svg><use href="#i-scope"/></svg><span>开始</span></button>
+    <button type="button" data-mobile-chapter="evidence" data-nav="queries"><svg><use href="#i-search"/></svg><span>找证据</span></button>
+    <button type="button" data-mobile-chapter="judge" data-nav="screening"><svg><use href="#i-filter"/></svg><span>做判断</span></button>
+    <button type="button" data-mobile-chapter="deliver" data-nav="delivery"><svg><use href="#i-package"/></svg><span>带走</span></button>
+    <button type="button" hidden data-nav="scope"><span>边界</span></button>
   </nav>
 
   <div class="modal-backdrop" data-modal-backdrop hidden></div>
