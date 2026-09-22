@@ -62,9 +62,12 @@
 
   function personalizeAdvice(base, input) {
     var profile = normalizeProfile(input);
-    var goal = GOALS[profile.deliveryGoal];
-    var block = profile.weeklyHours <= 3 ? '一次 25 分钟专注' : profile.weeklyHours <= 8 ? '一个 50 分钟时段' : '两个 45 分钟时段';
-    return String(base || '').trim() + ' 先用' + block + '处理“' + goal.focus + '”，完成后留下可复查的来源与判断。';
+    var close = profile.researchStage === 'thesis'
+      ? '先核对争议最大的几篇来源，再补齐背景。'
+      : profile.researchStage === 'professional'
+        ? '先确认这条判断的依据，再扩展背景。'
+        : '先把能讲清楚的关键来源找齐，再往外扩。';
+    return String(base || '').trim() + ' ' + close;
   }
 
   return {
