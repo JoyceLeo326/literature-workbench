@@ -23,6 +23,7 @@
   var activeStorySceneId = '';
   var STARTER_TEMPLATES = {
     coursework: {
+      label: '课堂汇报',
       researchStage: 'coursework', deliveryGoal: 'class-report', weeklyHours: 4,
       cnTarget: 20, enTarget: 10, years: String(new Date().getFullYear() - 8) + '-' + String(new Date().getFullYear()),
       include: '直接回答研究问题；来源和作者信息可追溯；能够回到原文核验。',
@@ -30,6 +31,7 @@
       types: ['期刊论文', '研究报告']
     },
     review: {
+      label: '开题 / 文献综述',
       researchStage: 'thesis', deliveryGoal: 'review', weeklyHours: 8,
       cnTarget: 30, enTarget: 30, years: String(new Date().getFullYear() - 10) + '-' + String(new Date().getFullYear()),
       include: '直接讨论研究对象与核心关系；保留中英文来源、研究方法、限制与相反结果。',
@@ -37,6 +39,7 @@
       types: ['期刊论文', '会议论文', '学位论文']
     },
     brief: {
+      label: '决策简报',
       researchStage: 'professional', deliveryGoal: 'proposal', weeklyHours: 5,
       cnTarget: 16, enTarget: 8, years: String(new Date().getFullYear() - 5) + '-' + String(new Date().getFullYear()),
       include: '与当前决策直接相关；结论、数据和适用范围可核验；优先一手来源与近期材料。',
@@ -395,14 +398,17 @@
   function applyStarterTemplate(templateId) {
     var template = STARTER_TEMPLATES[templateId];
     if (!template) return;
-    state.project = Object.assign({}, state.project, template);
+    state.project = Object.assign({}, state.project, template, {
+      starterTemplate: templateId,
+      starterTemplateLabel: template.label
+    });
     state.records = [];
     clearFormDirty($('[data-scope-form]'));
     saveState('研究骨架已准备');
     renderAll();
     showView('scope');
     $('[data-scope-form] [name="title"]').focus();
-    toast('骨架已搭好，请写下你的真实问题');
+    toast('已选起点，请写下你的真实问题');
   }
   function renderStartDesk() {
     var started = projectHasScope();
@@ -414,7 +420,8 @@
     var advice = getAdvice();
     var c = counts();
     var screening = Synthesis.summarizeScreening(formalRecords());
-    if (!projectHasScope()) return { stage: '起步 · 定问题', progress: 8, title: '先把问题和交付写清楚', copy: '选一个研究场景，再补上真实主题、期限和纳入边界。', view: 'overview', action: '选择场景' };
+    if (!projectHasScope() && state.project.starterTemplate) return { stage: '起步 · 已选起点', progress: 12, title: '补上真实主题与期限', copy: '“' + safeText(state.project.starterTemplateLabel || '这个起点') + '”已经准备好研究节奏，接下来写下你的真实问题和截止时间。', view: 'scope', action: '继续填写' };
+    if (!projectHasScope()) return { stage: '起步 · 定任务', progress: 8, title: '先说清这次要交什么', copy: '选一个起点，再补上真实主题、期限和纳入边界。', view: 'overview', action: '选择起点' };
     if (!state.searchLogs.length) return { stage: '取证 · 留检索痕迹', progress: 24, title: '生成并记录第一轮检索', copy: '比较三条路线，确认取舍后再保存数据库与检索时间。', view: 'queries', action: '比较路线' };
     if (!c.total) return { stage: '取证 · 建目录', progress: 38, title: '带回第一条可追溯题录', copy: '至少保留标题、作者、来源，以及能回到原文的 DOI 或链接。', view: 'library', action: '添加文献' };
     if (screening.pending || screening.findings < screening.included) return { stage: '判断 · 筛选与综合', progress: 58, title: advice.title, copy: advice.copy, view: 'screening', action: '继续判断' };
@@ -1681,7 +1688,14 @@
       if (event.target.closest('[data-menu]')) { $('#sidebar').classList.toggle('is-open'); return; }
       var starter = event.target.closest('[data-start-template]');
       if (starter) { applyStarterTemplate(starter.getAttribute('data-start-template')); return; }
-      if (event.target.closest('[data-start-blank]')) { showView('scope'); $('[data-scope-form] [name="title"]').focus(); return; }
+      if (event.target.closest('[data-start-blank]')) {
+        state.project = Object.assign({}, state.project, { starterTemplate: '', starterTemplateLabel: '' });
+        saveState('已切换为空白起点');
+        renderProductCheckpoint();
+        showView('scope');
+        $('[data-scope-form] [name="title"]').focus();
+        return;
+      }
       var checkpointAction = event.target.closest('[data-checkpoint-action]');
       if (checkpointAction) { showView(checkpointAction.getAttribute('data-target-view')); return; }
       if (event.target.closest('[data-create-project]')) { openProjectDialog(); return; }

@@ -47,6 +47,8 @@
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></symbol>
   </svg>
 
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#overview" data-nav="overview" aria-label="文径工作台首页">
@@ -70,7 +72,7 @@
       </div>
     </aside>
 
-    <main class="workspace">
+    <main class="workspace" id="main-content" tabindex="-1">
       <header class="topbar">
         <button class="icon-button menu-button" type="button" data-menu aria-label="打开导航"><svg><use href="#i-menu"/></svg></button>
         <div class="project-heading">
@@ -89,32 +91,32 @@
 
       <aside class="product-checkpoint" data-product-checkpoint aria-live="polite">
         <div class="checkpoint-progress" aria-hidden="true"><i data-checkpoint-progress></i></div>
-        <span class="checkpoint-stage" data-checkpoint-stage>起步 · 先写清问题</span>
+        <span class="checkpoint-stage" data-checkpoint-stage>起步 · 定任务</span>
         <div class="checkpoint-copy">
-          <strong data-checkpoint-title>先选一个研究场景</strong>
-          <p data-checkpoint-copy>文径会搭好边界、证据与交付骨架，题录和判断仍由你确认。</p>
+          <strong data-checkpoint-title>先说清这次要交什么</strong>
+          <p data-checkpoint-copy>选一个起点，再补上真实主题、期限和纳入边界。</p>
         </div>
-        <button class="button button-dark" type="button" data-checkpoint-action data-target-view="overview">开始整理 <svg><use href="#i-arrow"/></svg></button>
+        <button class="button button-dark" type="button" data-checkpoint-action data-target-view="overview">选择起点 <svg><use href="#i-arrow"/></svg></button>
       </aside>
 
       <div class="view-stack">
         <section class="view is-active" data-view="overview" aria-labelledby="overview-title">
           <article class="start-desk reveal" data-start-desk>
-            <div class="start-desk-copy">
-              <p class="eyebrow">从真实问题开始</p>
-              <h2>你要交的不是一堆链接，<br>而是一条站得住的研究路径。</h2>
-              <p>先选最接近的场景。文径只搭工作骨架，不替你编造文献、结论或来源。</p>
-              <button class="text-link" type="button" data-start-blank>我想从空白开始 <svg><use href="#i-arrow"/></svg></button>
+            <div class="start-desk-copy" data-start-hero>
+              <p class="eyebrow">先说清这次要交什么</p>
+              <h2>从一个具体交付开始，<br>把资料走成一条能回查的路径。</h2>
+              <p>选一个接近你现在工作的起点，再填入真实主题和期限。文径帮你把过程排顺，文献与判断由你确认。</p>
+              <button class="text-link" type="button" data-start-blank>不想用模板？从空白开始 <svg><use href="#i-arrow"/></svg></button>
             </div>
-            <div class="start-template-grid" aria-label="选择研究场景">
+            <div class="start-template-grid" aria-label="选择一个研究起点">
               <button class="start-template" type="button" data-start-template="coursework">
-                <span>01 · 课堂</span><strong>课程研究与汇报</strong><p>先形成能讲清楚、能回查来源的课堂底稿。</p><em>4 小时 / 周 · 30 篇起步</em>
+                <span>01 · 课堂</span><strong>课堂汇报</strong><p>把问题、关键来源和讲述顺序先排出来。</p><em data-start-template-meta>建议节奏 · 4 小时 / 周</em>
               </button>
               <button class="start-template start-template-featured" type="button" data-start-template="review">
-                <span>02 · 论文</span><strong>开题与文献综述</strong><p>兼顾中英文来源、研究分歧与可复核的取舍。</p><em>8 小时 / 周 · 60 篇起步</em>
+                <span>02 · 论文</span><strong>开题 / 文献综述</strong><p>同时照顾中英文来源、分歧和可复核的取舍。</p><em data-start-template-meta>建议节奏 · 8 小时 / 周</em>
               </button>
               <button class="start-template" type="button" data-start-template="brief">
-                <span>03 · 工作</span><strong>调研与决策简报</strong><p>围绕一个具体判断，快速留下来源与反方证据。</p><em>5 小时 / 周 · 24 篇起步</em>
+                <span>03 · 调研</span><strong>决策简报</strong><p>围绕一个要回答的判断，留下依据与反方证据。</p><em data-start-template-meta>建议节奏 · 5 小时 / 周</em>
               </button>
             </div>
           </article>
